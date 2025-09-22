@@ -284,7 +284,7 @@
                 <div class="van-col van-col--9">
                     <div class="flex-box">
                         <div class="flex1">
-                            <div class="img-div"><img src="./xxdap2_files/lqpic.do" class="full-img"></div>
+                            <div class="img-div"><img src="{{ admission_photo }}" class="full-img"></div>
                             <p class="text">录取照片</p></div>
                         <div class="flex1">
                             <div class="img-div"><img src="./xxdap2_files/no-photo.png"></div>
@@ -292,37 +292,37 @@
                     </div>
                 </div>
                 <div class="van-col van-col--15"><h5 class="nameFamily">􉆨􇖥􉋡</h5>
-                    <p>{{性别}}　{{学号}}</p></div>
+                    <p>{{ gender }}　{{ student_id }}</p></div>
             </div>
             <div class="top-bottom-img xj-detail-img">
                 <div class="yxmc-wrap">
-                    <div class="yxmc">{{学校名称}}</div>
-                    <div class="cc xj-cc-lable">{{学历类别}}</div>
+                    <div class="yxmc">{{ school_name }}</div>
+                    <div class="cc xj-cc-lable">{{ degree_type }}</div>
                 </div>
-                <div class="des">{{专业名称}}　|　{{学习形式}}</div>
+                <div class="des">{{ major }}　|　{{ learning_format }}</div>
             </div>
         </div>
         <div class="xj-c">
             <ul class="gdjy-view-ul">
                 <li>
                     <div class="left">民族</div>
-                    <div class="right">{{民族}}</div>
+                    <div class="right">{{ ethnicity }}</div>
                 </li>
                 <li>
                     <div class="left">证件号码</div>
-                    <div class="right">{{证件号码}}</div>
+                    <div class="right">{{ id_number }}</div>
                 </li>
                 <li>
                     <div class="left">学制</div>
-                    <div class="right">{{学制}} 年</div>
+                    <div class="right">{{ study_duration }} 年</div>
                 </li>
                 <li>
                     <div class="left">学历类别</div>
-                    <div class="right">{{学历类别}}</div>
+                    <div class="right">{{ degree_type }}</div>
                 </li>
                 <li>
                     <div class="left">分院</div>
-                    <div class="right">{{学院}}</div>
+                    <div class="right">{{ college }}</div>
                 </li>
                 <li>
                     <div class="left">系所</div>
@@ -334,11 +334,11 @@
                 </li>
                 <li>
                     <div class="left">学号</div>
-                    <div class="right">{{学号}}</div>
+                    <div class="right">{{ student_id }}</div>
                 </li>
                 <li>
                     <div class="left">入学日期</div>
-                    <div class="right">{{入学日期}}</div>
+                    <div class="right">{{ enrollment_date }}</div>
                 </li>
                 <li>
                     <div class="left">学籍状态</div>
@@ -346,7 +346,7 @@
                 </li>
                 <li>
                     <div class="left">预计毕业日期</div>
-                    <div class="right">{{预计毕业日期}}</div>
+                    <div class="right">{{ expected_graduation_date }}</div>
                 </li>
             </ul>
         </div>
