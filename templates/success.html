@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提交成功 - 学籍信息系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .success-container {
+            background: white;
+            border-radius: 20px;
+            padding: 50px 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 30px;
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: scaleIn 0.5s ease 0.2s both;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+            }
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .checkmark {
+            width: 40px;
+            height: 40px;
+            stroke: white;
+            stroke-width: 3;
+            fill: none;
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: drawCheck 0.5s ease 0.5s forwards;
+        }
+
+        @keyframes drawCheck {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+
+        .message {
+            color: #7f8c8d;
+            font-size: 16px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .url-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+
+        .url-label {
+            color: #555;
+            font-size: 14px;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .url-container {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 5px;
+            margin-top: 10px;
+        }
+
+        .url-input {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            font-size: 14px;
+            color: #333;
+            background: transparent;
+            outline: none;
+            font-family: monospace;
+        }
+
+        .copy-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .copy-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .copy-btn.copied {
+            background: #48bb78;
+        }
+
+        .copy-btn.copied::after {
+            content: ' ✓';
+        }
+
+        .qr-section {
+            margin-top: 30px;
+        }
+
+        .qr-code {
+            width: 150px;
+            height: 150px;
+            margin: 20px auto;
+            padding: 10px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        .qr-code canvas,
+        .qr-code img {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .actions {
+            margin-top: 40px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 15px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #f0f0ff;
+        }
+
+        .tips {
+            margin-top: 30px;
+            padding: 15px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+            text-align: left;
+        }
+
+        .tips-title {
+            color: #856404;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .tips-content {
+            color: #856404;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 600px) {
+            .success-container {
+                padding: 40px 25px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div class="success-icon">
+            <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                <path d="M14 27l8 8 16-16"/>
+            </svg>
+        </div>
+
+        <h1>提交成功！</h1>
+        <p class="message">
+            您的学籍信息已成功录入系统<br>
+            请妥善保存以下链接，以便后续查看
+        </p>
+
+        <div class="url-section">
+            <div class="url-label">您的专属查询链接：</div>
+            <div class="url-container">
+                <input type="text" class="url-input" id="urlDisplay" value="{{ url }}" readonly>
+                <button class="copy-btn" onclick="copyUrl()">复制链接</button>
+            </div>
+        </div>
+
+        <div class="qr-section">
+            <div class="url-label">扫码访问：</div>
+            <div class="qr-code" id="qrcode"></div>
+        </div>
+
+        <div class="tips">
+            <div class="tips-title">⚠️ 重要提醒</div>
+            <div class="tips-content">
+                • 请立即复制并保存上方链接<br>
+                • 该链接是查看您学籍信息的唯一凭证<br>
+                • 建议将链接发送到您的邮箱或收藏夹保存
+            </div>
+        </div>
+
+        <div class="actions">
+            <a href="{{ url }}" class="btn btn-primary">查看详情</a>
+            <a href="/" class="btn btn-secondary">返回首页</a>
+        </div>
+    </div>
+
+    <!-- 引入QRCode.js库 -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+        // 生成二维码
+        document.addEventListener('DOMContentLoaded', function() {
+            const url = document.getElementById('urlDisplay').value;
+            new QRCode(document.getElementById("qrcode"), {
+                text: url,
+                width: 130,
+                height: 130,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        });
+
+        // 复制URL功能
+        function copyUrl() {
+            const urlInput = document.getElementById('urlDisplay');
+            const copyBtn = document.querySelector('.copy-btn');
+
+            urlInput.select();
+            urlInput.setSelectionRange(0, 99999); // 移动设备兼容
+
+            try {
+                document.execCommand('copy');
+
+                // 显示复制成功状态
+                copyBtn.classList.add('copied');
+                copyBtn.textContent = '已复制';
+
+                // 3秒后恢复原状
+                setTimeout(() => {
+                    copyBtn.classList.remove('copied');
+                    copyBtn.textContent = '复制链接';
+                }, 3000);
+            } catch (err) {
+                // 如果复制失败，使用备用方法
+                navigator.clipboard.writeText(urlInput.value).then(() => {
+                    copyBtn.classList.add('copied');
+                    copyBtn.textContent = '已复制';
+
+                    setTimeout(() => {
+                        copyBtn.classList.remove('copied');
+                        copyBtn.textContent = '复制链接';
+                    }, 3000);
+                });
+            }
+        }
+
+        // 自动选中URL文本，方便手动复制
+        document.getElementById('urlDisplay').addEventListener('click', function() {
+            this.select();
+        });
+    </script>
+</body>
+</html>

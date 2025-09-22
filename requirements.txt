@@ -1,0 +1,12 @@
+# Web Framework
+Flask==2.3.3
+
+# Production Server
+gunicorn==21.2.0
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Development Tools (optional)
+flask-cors==4.0.0
+watchdog==3.0.0
