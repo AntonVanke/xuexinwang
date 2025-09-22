@@ -117,7 +117,8 @@ def form():
 
         return render_template('success.html', url=full_url)
 
-    return render_template('form.html')
+    # 默认使用带预览的表单
+    return render_template('form_with_preview.html')
 
 
 if __name__ == '__main__':

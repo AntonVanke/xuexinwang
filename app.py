@@ -23,7 +23,20 @@ Config.init_dirs()
 @app.route('/')
 def index():
     """首页 - 表单页面"""
+    # 默认使用带预览的新版本
+    return render_template('form_with_preview.html')
+
+
+@app.route('/form')
+def form_simple():
+    """简单表单页面（无预览）"""
     return render_template('form.html')
+
+
+@app.route('/preview')
+def form_preview():
+    """带实时预览的表单页面"""
+    return render_template('form_with_preview.html')
 
 
 @app.route('/submit', methods=['POST'])
