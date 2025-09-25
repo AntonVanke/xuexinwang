@@ -448,9 +448,15 @@
                 </div>
 
                 <div class="form-group">
+                    <label>证件号码 <span class="required">*</span></label>
+                    <input type="text" name="id_number" id="id_number" required placeholder="请输入18位身份证号码" maxlength="18">
+                    <span class="error-message" id="id_error">请输入有效的身份证号码</span>
+                </div>
+
+                <div class="form-group">
                     <label>性别 <span class="required">*</span></label>
-                    <select name="gender" required>
-                        <option value="">请选择性别</option>
+                    <select name="gender" id="gender" required>
+                        <option value="">自动识别</option>
                         <option value="男">男</option>
                         <option value="女">女</option>
                     </select>
@@ -459,12 +465,6 @@
                 <div class="form-group">
                     <label>民族 <span class="required">*</span></label>
                     <input type="text" name="ethnicity" required placeholder="例如：汉族">
-                </div>
-
-                <div class="form-group">
-                    <label>证件号码 <span class="required">*</span></label>
-                    <input type="text" name="id_number" id="id_number" required placeholder="请输入18位身份证号码" maxlength="18">
-                    <span class="error-message" id="id_error">请输入有效的身份证号码</span>
                 </div>
             </div>
 
@@ -691,9 +691,18 @@
             return checkCode === idNumber[17].toUpperCase();
         }
 
-        // Global variables for modal
+        // Extract gender from ID number
+        function extractGenderFromId(idNumber) {
+            if (!idNumber || idNumber.length < 17) {
+                return '';
+            }
+            // The 17th digit determines gender: odd for male, even for female
+            const genderDigit = parseInt(idNumber[16]);
+            return genderDigit % 2 === 1 ? '男' : '女';
+        }
+
+        // Global variable for modal
         let currentDuplicateData = null;
-        let isCheckingDuplicate = false;
 
         // Modal functions
         function showModal(data) {
@@ -707,7 +716,7 @@
         function closeModal() {
             document.getElementById('duplicateModal').classList.remove('show');
             currentDuplicateData = null;
-            // Clear force update flag
+            // Reset force update flag when closing modal
             document.getElementById('id_number').dataset.forceUpdate = 'false';
         }
 
@@ -718,61 +727,53 @@
         }
 
         function confirmOverwrite() {
+            // Set force update flag and resubmit
             document.getElementById('id_number').dataset.forceUpdate = 'true';
             if (currentDuplicateData) {
                 document.getElementById('id_number').dataset.existingQueryId = currentDuplicateData.query_id;
             }
             closeModal();
+            // Re-submit the form with force update flag
+            document.getElementById('studentForm').dispatchEvent(new Event('submit'));
         }
 
-        // Add ID number validation on input
-        document.getElementById('id_number').addEventListener('blur', async function(e) {
+        // Add input event for real-time gender extraction
+        document.getElementById('id_number').addEventListener('input', function() {
+            const idNumber = this.value;
+
+            // Extract and set gender when ID number has enough digits
+            if (idNumber.length >= 17) {
+                const gender = extractGenderFromId(idNumber);
+                if (gender) {
+                    document.getElementById('gender').value = gender;
+                }
+            } else {
+                // Clear gender when ID is incomplete
+                document.getElementById('gender').value = '';
+            }
+        });
+
+        // Add ID number validation on blur (only validate format, no duplicate check)
+        document.getElementById('id_number').addEventListener('blur', function(e) {
             const idNumber = this.value;
             const errorMsg = document.getElementById('id_error');
             const formGroup = this.parentElement;
 
-            // First validate format
+            // Validate format
             if (idNumber && !validateIdNumber(idNumber)) {
                 formGroup.classList.add('error');
                 errorMsg.style.display = 'block';
-                return;
             } else {
                 formGroup.classList.remove('error');
                 errorMsg.style.display = 'none';
-            }
 
-            // Prevent duplicate checks
-            if (!idNumber || isCheckingDuplicate) return;
-
-            // Check if we already checked this ID and user made a decision
-            if (this.dataset.lastCheckedId === idNumber && this.dataset.forceUpdate) {
-                return;
-            }
-
-            isCheckingDuplicate = true;
-            this.dataset.lastCheckedId = idNumber;
-
-            try {
-                const response = await fetch('/check_id_number', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ id_number: idNumber })
-                });
-
-                const data = await response.json();
-                if (data.exists) {
-                    showModal(data);
-                } else {
-                    // Clear any previous decision
-                    this.dataset.forceUpdate = 'false';
-                    delete this.dataset.existingQueryId;
+                // Auto-fill gender on blur
+                if (idNumber && validateIdNumber(idNumber)) {
+                    const gender = extractGenderFromId(idNumber);
+                    if (gender) {
+                        document.getElementById('gender').value = gender;
+                    }
                 }
-            } catch (error) {
-                console.error('Error checking ID number:', error);
-            } finally {
-                isCheckingDuplicate = false;
             }
         });
 
@@ -781,18 +782,43 @@
             e.preventDefault();
 
             const idNumber = document.getElementById('id_number').value;
+            const idField = document.getElementById('id_number');
+
+            // Validate ID number format
             if (!validateIdNumber(idNumber)) {
                 alert('请输入有效的身份证号码');
-                document.getElementById('id_number').focus();
+                idField.focus();
                 return;
             }
 
+            // Check for duplicate only on first submission attempt
+            if (idField.dataset.forceUpdate !== 'true') {
+                try {
+                    const checkResponse = await fetch('/check_id_number', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ id_number: idNumber })
+                    });
+
+                    const checkData = await checkResponse.json();
+                    if (checkData.exists) {
+                        // Show modal for duplicate
+                        showModal(checkData);
+                        return; // Stop submission, wait for user decision
+                    }
+                } catch (error) {
+                    console.error('Error checking ID number:', error);
+                }
+            }
+
+            // Proceed with submission
             const formData = new FormData(this);
 
             // Add force update flag if user confirmed update
-            const idField = document.getElementById('id_number');
-            if (idField.dataset.forceUpdate) {
-                formData.append('force_update', idField.dataset.forceUpdate);
+            if (idField.dataset.forceUpdate === 'true') {
+                formData.append('force_update', 'true');
             }
 
             try {
@@ -804,34 +830,6 @@
                 if (response.ok) {
                     // If successful, redirect
                     window.location.href = response.url;
-                } else if (response.status === 409) {
-                    // Duplicate ID detected during submission
-                    const data = await response.json();
-                    const confirmUpdate = confirm(
-                        `${data.message}\n` +
-                        `访问链接：${data.view_url}\n\n` +
-                        `是否要覆盖原有数据？\n` +
-                        `注意：重新提交会覆盖旧数据，但访问链接保持不变。`
-                    );
-
-                    if (confirmUpdate) {
-                        formData.set('force_update', 'true');
-                        const retryResponse = await fetch('/submit', {
-                            method: 'POST',
-                            body: formData
-                        });
-
-                        if (retryResponse.ok) {
-                            window.location.href = retryResponse.url;
-                        } else {
-                            const errorText = await retryResponse.text();
-                            alert('提交失败：' + errorText);
-                        }
-                    } else {
-                        if (confirm('是否查看现有学生信息？')) {
-                            window.location.href = data.view_url;
-                        }
-                    }
                 } else {
                     const errorText = await response.text();
                     alert('提交失败：' + errorText);

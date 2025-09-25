@@ -23,9 +23,11 @@ if not os.path.exists('uploads'):
     os.makedirs('uploads')
 
 def init_db():
-    """Initialize the database with students table"""
+    """Initialize the database with students and deleted_students tables"""
     conn = sqlite3.connect(app.config['DATABASE'])
     c = conn.cursor()
+
+    # Create students table
     c.execute('''CREATE TABLE IF NOT EXISTS students
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   query_id TEXT UNIQUE NOT NULL,
@@ -45,6 +47,29 @@ def init_db():
                   expected_graduation_date TEXT NOT NULL,
                   admission_photo TEXT,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+
+    # Create deleted_students table (for soft delete)
+    c.execute('''CREATE TABLE IF NOT EXISTS deleted_students
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  query_id TEXT NOT NULL,
+                  name TEXT NOT NULL,
+                  gender TEXT NOT NULL,
+                  ethnicity TEXT NOT NULL,
+                  id_number TEXT NOT NULL,
+                  student_id TEXT NOT NULL,
+                  school_name TEXT NOT NULL,
+                  college TEXT NOT NULL,
+                  major TEXT NOT NULL,
+                  degree_level TEXT NOT NULL,
+                  degree_type TEXT NOT NULL,
+                  learning_format TEXT NOT NULL,
+                  study_duration TEXT NOT NULL,
+                  enrollment_date TEXT NOT NULL,
+                  expected_graduation_date TEXT NOT NULL,
+                  admission_photo TEXT,
+                  created_at TIMESTAMP,
+                  deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+
     conn.commit()
     conn.close()
 
@@ -113,10 +138,11 @@ def home():
 def view(query_id):
     student = get_student_by_query_id(query_id)
     if not student:
-        return "学生信息不存在", 404
+        return render_template('templates/404.html', query_id=query_id), 404
 
     # Convert Row to dict for template
     data = dict(student)
+    data['name'] = data['name']
     # Map database fields to template variables
     data['gender'] = data['gender']
     data['student_id'] = data['student_id']
@@ -245,6 +271,41 @@ def success():
 
     return render_template('templates/success.html', data=dict(student), query_id=query_id)
 
+@app.route('/delete/<query_id>', methods=['POST'])
+def delete_student(query_id):
+    """Soft delete student by moving to deleted_students table"""
+    conn = sqlite3.connect(app.config['DATABASE'])
+    c = conn.cursor()
+
+    try:
+        # Get student data first
+        c.execute("SELECT * FROM students WHERE query_id = ?", (query_id,))
+        student = c.fetchone()
+
+        if not student:
+            conn.close()
+            return jsonify({'success': False, 'message': '学生信息不存在'}), 404
+
+        # Insert into deleted_students table
+        c.execute('''INSERT INTO deleted_students
+                     (query_id, name, gender, ethnicity, id_number, student_id,
+                      school_name, college, major, degree_level, degree_type,
+                      learning_format, study_duration, enrollment_date,
+                      expected_graduation_date, admission_photo, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                  student[1:])  # Skip the id field
+
+        # Delete from students table
+        c.execute("DELETE FROM students WHERE query_id = ?", (query_id,))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': '学生信息已删除'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 def mask_name(name):
     """Privacy protection for name - keep first and last character"""
     if len(name) <= 1:
@@ -322,8 +383,8 @@ def generate_code(query_id):
 
         qr_img = qr.make_image(fill_color="black", back_color="white")
 
-        # Resize QR code to fit in the green box
-        qr_size = 170  # Slightly smaller than green box to have padding
+        # Resize QR code to fit in the green box (1.25x larger)
+        qr_size = int(170 * 1.25)  # 212 pixels (1.25 times larger)
         qr_img = qr_img.resize((qr_size, qr_size))
 
         # Calculate position to center QR code in green box
@@ -363,6 +424,17 @@ def serve_static(filename):
 def serve_uploads(filename):
     return send_from_directory('uploads', filename)
 
+# Route to serve placeholder image
+@app.route('/temp/img_1.png')
+def serve_placeholder():
+    """Serve a minimal transparent 1x1 pixel PNG"""
+    from flask import Response
+    # Minimal transparent PNG (1x1 pixel)
+    transparent_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05W\xcd\xca\x00\x00\x00\x00IEND\xaeB`\x82'
+    return Response(transparent_png, mimetype='image/png')
+
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, port=5000)
+    # host='0.0.0.0' 允许外网访问
+    # 生产环境建议使用 debug=False
+    app.run(host='0.0.0.0', debug=True, port=5000)

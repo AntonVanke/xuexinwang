@@ -264,9 +264,148 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(118, 75, 162, 0.4);
         }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            border: none;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+
+        /* Delete confirmation modal */
+        .delete-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .delete-modal.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .delete-modal-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 450px;
+            width: 90%;
+            padding: 30px;
+            text-align: center;
+            animation: slideDown 0.3s ease;
+        }
+
+        .delete-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fee;
+            border-radius: 50%;
+        }
+
+        .delete-icon svg {
+            width: 40px;
+            height: 40px;
+            fill: #dc3545;
+        }
+
+        .delete-modal h3 {
+            color: #323130;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .delete-modal p {
+            color: #605e5c;
+            font-size: 14px;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .delete-modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            padding: 10px 24px;
+            border-radius: 4px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .modal-btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .modal-btn-secondary {
+            background: #f3f2f1;
+            color: #323130;
+            border: 1px solid #d2d0ce;
+        }
+
+        .modal-btn-secondary:hover {
+            background: #e1dfdd;
+            transform: translateY(-1px);
+        }
+
+        /* Hidden admin entrance */
+        .admin-entrance {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            opacity: 0.05;
+            transition: opacity 0.3s;
+            cursor: pointer;
+            z-index: 999;
+        }
+
+        .admin-entrance:hover {
+            opacity: 0.3;
+        }
+
+        .admin-entrance img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
     </style>
 </head>
 <body>
+    <!-- Hidden admin entrance -->
+    <a href="/view/{{ query_id }}" class="admin-entrance" title="管理">
+        <img src="/temp/img_1.png" alt="" onerror="this.style.display='none'">
+    </a>
+
     <div class="container">
         <div class="success-icon">
             <svg viewBox="0 0 24 24" fill="none">
@@ -365,6 +504,28 @@
         <div class="button-group">
             <a href="/view/{{ query_id }}" class="btn btn-primary">查看学生档案</a>
             <a href="/" class="btn btn-secondary">添加另一个学生</a>
+            <button onclick="showDeleteModal()" class="btn btn-danger">删除信息</button>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="delete-modal">
+        <div class="delete-modal-content">
+            <div class="delete-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+            </div>
+            <h3>确认删除</h3>
+            <p>
+                您确定要删除该学生的信息吗？<br>
+                <strong>{{ data.name }}</strong> ({{ data.id_number }})<br><br>
+                此操作不可恢复，请谨慎操作。
+            </p>
+            <div class="delete-modal-buttons">
+                <button class="modal-btn modal-btn-danger" onclick="confirmDelete()">确认删除</button>
+                <button class="modal-btn modal-btn-secondary" onclick="closeDeleteModal()">取消</button>
+            </div>
         </div>
     </div>
 
@@ -427,6 +588,45 @@
                 modal.style.display = 'none';
             }
         }
+
+        // Delete modal functions
+        function showDeleteModal() {
+            document.getElementById('deleteModal').classList.add('show');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('show');
+        }
+
+        function confirmDelete() {
+            // Send delete request
+            fetch('/delete/{{ query_id }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('学生信息已成功删除');
+                    // Redirect to home page
+                    window.location.href = '/';
+                } else {
+                    alert('删除失败: ' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                alert('删除请求失败: ' + error);
+            });
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('deleteModal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                closeDeleteModal();
+            }
+        });
     </script>
 </body>
 </html>
