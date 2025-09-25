@@ -23,6 +23,195 @@
             padding: 20px;
         }
 
+        /* Custom Modal Styles */
+        .custom-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .custom-modal.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-dialog {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+            position: relative;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .modal-close:hover {
+            opacity: 1;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .modal-info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .modal-info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .modal-info-label {
+            font-weight: 600;
+            color: #323130;
+        }
+
+        .modal-info-value {
+            color: #605e5c;
+        }
+
+        .modal-link {
+            background: #e3f2fd;
+            border-radius: 4px;
+            padding: 8px;
+            margin: 16px 0;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            color: #0078d4;
+        }
+
+        .modal-warning {
+            display: flex;
+            align-items: flex-start;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .modal-warning-icon {
+            color: #ffc107;
+            margin-right: 12px;
+            font-size: 20px;
+        }
+
+        .modal-warning-text {
+            color: #856404;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 10px 24px;
+            border-radius: 4px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-btn-primary {
+            background: #0078d4;
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            background: #106ebe;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 120, 212, 0.3);
+        }
+
+        .modal-btn-secondary {
+            background: #f3f2f1;
+            color: #323130;
+            border: 1px solid #d2d0ce;
+        }
+
+        .modal-btn-secondary:hover {
+            background: #e1dfdd;
+            transform: translateY(-1px);
+        }
+
+        .modal-btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .modal-btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+
         .container {
             background: rgba(255, 255, 255, 0.98);
             backdrop-filter: blur(20px);
@@ -502,30 +691,192 @@
             return checkCode === idNumber[17].toUpperCase();
         }
 
+        // Global variables for modal
+        let currentDuplicateData = null;
+        let isCheckingDuplicate = false;
+
+        // Modal functions
+        function showModal(data) {
+            currentDuplicateData = data;
+            document.getElementById('existingName').textContent = data.name;
+            document.getElementById('existingId').textContent = document.getElementById('id_number').value;
+            document.getElementById('existingLink').textContent = data.view_url;
+            document.getElementById('duplicateModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('duplicateModal').classList.remove('show');
+            currentDuplicateData = null;
+            // Clear force update flag
+            document.getElementById('id_number').dataset.forceUpdate = 'false';
+        }
+
+        function viewExisting() {
+            if (currentDuplicateData) {
+                window.location.href = currentDuplicateData.view_url;
+            }
+        }
+
+        function confirmOverwrite() {
+            document.getElementById('id_number').dataset.forceUpdate = 'true';
+            if (currentDuplicateData) {
+                document.getElementById('id_number').dataset.existingQueryId = currentDuplicateData.query_id;
+            }
+            closeModal();
+        }
+
         // Add ID number validation on input
-        document.getElementById('id_number').addEventListener('blur', function() {
+        document.getElementById('id_number').addEventListener('blur', async function(e) {
             const idNumber = this.value;
             const errorMsg = document.getElementById('id_error');
             const formGroup = this.parentElement;
 
+            // First validate format
             if (idNumber && !validateIdNumber(idNumber)) {
                 formGroup.classList.add('error');
                 errorMsg.style.display = 'block';
+                return;
             } else {
                 formGroup.classList.remove('error');
                 errorMsg.style.display = 'none';
             }
+
+            // Prevent duplicate checks
+            if (!idNumber || isCheckingDuplicate) return;
+
+            // Check if we already checked this ID and user made a decision
+            if (this.dataset.lastCheckedId === idNumber && this.dataset.forceUpdate) {
+                return;
+            }
+
+            isCheckingDuplicate = true;
+            this.dataset.lastCheckedId = idNumber;
+
+            try {
+                const response = await fetch('/check_id_number', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ id_number: idNumber })
+                });
+
+                const data = await response.json();
+                if (data.exists) {
+                    showModal(data);
+                } else {
+                    // Clear any previous decision
+                    this.dataset.forceUpdate = 'false';
+                    delete this.dataset.existingQueryId;
+                }
+            } catch (error) {
+                console.error('Error checking ID number:', error);
+            } finally {
+                isCheckingDuplicate = false;
+            }
         });
 
-        // Form submission validation
-        document.getElementById('studentForm').addEventListener('submit', function(e) {
+        // Form submission validation and handling
+        document.getElementById('studentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
             const idNumber = document.getElementById('id_number').value;
             if (!validateIdNumber(idNumber)) {
-                e.preventDefault();
                 alert('请输入有效的身份证号码');
                 document.getElementById('id_number').focus();
+                return;
+            }
+
+            const formData = new FormData(this);
+
+            // Add force update flag if user confirmed update
+            const idField = document.getElementById('id_number');
+            if (idField.dataset.forceUpdate) {
+                formData.append('force_update', idField.dataset.forceUpdate);
+            }
+
+            try {
+                const response = await fetch('/submit', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    // If successful, redirect
+                    window.location.href = response.url;
+                } else if (response.status === 409) {
+                    // Duplicate ID detected during submission
+                    const data = await response.json();
+                    const confirmUpdate = confirm(
+                        `${data.message}\n` +
+                        `访问链接：${data.view_url}\n\n` +
+                        `是否要覆盖原有数据？\n` +
+                        `注意：重新提交会覆盖旧数据，但访问链接保持不变。`
+                    );
+
+                    if (confirmUpdate) {
+                        formData.set('force_update', 'true');
+                        const retryResponse = await fetch('/submit', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (retryResponse.ok) {
+                            window.location.href = retryResponse.url;
+                        } else {
+                            const errorText = await retryResponse.text();
+                            alert('提交失败：' + errorText);
+                        }
+                    } else {
+                        if (confirm('是否查看现有学生信息？')) {
+                            window.location.href = data.view_url;
+                        }
+                    }
+                } else {
+                    const errorText = await response.text();
+                    alert('提交失败：' + errorText);
+                }
+            } catch (error) {
+                alert('提交失败：' + error.message);
             }
         });
     </script>
+    <!-- Custom Modal for Duplicate ID -->
+    <div id="duplicateModal" class="custom-modal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>身份证号已存在</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-info">
+                    <div class="modal-info-row">
+                        <span class="modal-info-label">学生姓名：</span>
+                        <span class="modal-info-value" id="existingName"></span>
+                    </div>
+                    <div class="modal-info-row">
+                        <span class="modal-info-label">身份证号：</span>
+                        <span class="modal-info-value" id="existingId"></span>
+                    </div>
+                </div>
+
+                <div class="modal-link" id="existingLink"></div>
+
+                <div class="modal-warning">
+                    <span class="modal-warning-icon">⚠</span>
+                    <span class="modal-warning-text">
+                        重新提交将覆盖原有数据，但访问链接保持不变。<br>
+                        请确认是否要更新该学生的信息。
+                    </span>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="modal-btn modal-btn-secondary" onclick="viewExisting()">查看现有信息</button>
+                    <button class="modal-btn modal-btn-danger" onclick="confirmOverwrite()">覆盖数据</button>
+                    <button class="modal-btn modal-btn-primary" onclick="closeModal()">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

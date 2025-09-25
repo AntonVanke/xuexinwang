@@ -26,6 +26,55 @@
     <script src="/xxdap2_files/lodash.min.js.下载"></script>
     <script src="/xxdap2_files/jweixin-1.6.0.js.下载"></script>
     <style>
+        /* Modal Styles for Image Collection Code */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-content {
+            position: relative;
+            background-color: white;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 90%;
+            width: 400px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-close {
+            position: absolute;
+            right: 15px;
+            top: 10px;
+            color: #999;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        #collectionCodeImage {
+            max-width: 100%;
+            margin-top: 15px;
+        }
+
+        .jd-res-div {
+            cursor: pointer;
+        }
+    </style>
+    <style>
         .extra-wrap {
             display: flex;
             align-items: center;
@@ -271,7 +320,7 @@
                 onmousedown="clickVoteGa(this, &#39;zcsx&#39;)" class="vote-jy-part vote_bg_zcsx"></a></div>
     </div>
     <div class="padding16 xj-index chsi-font">
-        <div class="jd-res-div" style="margin-bottom: 0.533rem;">
+        <div class="jd-res-div" style="margin-bottom: 0.533rem;" onclick="showCollectionCode()">
             <div class="flex-box">
                 <div class="flex1"><span class="scan-txewm"></span>查看图像采集码
                 </div>
@@ -481,5 +530,49 @@
     })();
 </script>
 
+<!-- Modal for Image Collection Code -->
+<div id="codeModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeCodeModal()">&times;</span>
+        <h3 style="color: #333; margin-bottom: 10px;">图像采集码</h3>
+        <p style="color: #666; font-size: 14px;">请保存此码用于图像采集和验证</p>
+        <img id="collectionCodeImage" src="" alt="Collection Code">
+    </div>
+</div>
+
+<script>
+function showCollectionCode() {
+    // Get query_id from URL or page
+    const pathParts = window.location.pathname.split('/');
+    const queryId = pathParts[pathParts.length - 1];
+
+    // Fetch the generated image
+    fetch('/generate_code/' + queryId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('collectionCodeImage').src = data.image;
+                document.getElementById('codeModal').style.display = 'block';
+            } else {
+                alert('生成图像采集码失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(error => {
+            alert('请求失败: ' + error);
+        });
+}
+
+function closeCodeModal() {
+    document.getElementById('codeModal').style.display = 'none';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('codeModal');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
+</script>
 </body>
 </html>
