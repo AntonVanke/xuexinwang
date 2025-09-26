@@ -11,6 +11,9 @@ on:
         required: true
         default: 'v1.0.0'
 
+permissions:
+  contents: write
+
 jobs:
   build-linux:
     runs-on: ubuntu-latest
@@ -110,13 +113,10 @@ jobs:
         fi
 
     - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ steps.get_version.outputs.VERSION }}
-        release_name: Release ${{ steps.get_version.outputs.VERSION }}
+        name: Release ${{ steps.get_version.outputs.VERSION }}
         body: |
           ## 学信网档案管理系统 ${{ steps.get_version.outputs.VERSION }}
 
@@ -141,13 +141,4 @@ jobs:
           - 改进文件命名格式
         draft: false
         prerelease: false
-
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./release/xuexinwang-linux-amd64.tar.gz
-        asset_name: xuexinwang-linux-amd64.tar.gz
-        asset_content_type: application/gzip
+        files: ./release/xuexinwang-linux-amd64.tar.gz
