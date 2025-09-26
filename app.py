@@ -1,10 +1,11 @@
-from flask import Flask, render_template, send_from_directory, request, redirect, url_for, jsonify
-from datetime import datetime
+from flask import Flask, render_template, send_from_directory, request, redirect, url_for, jsonify, session
+from datetime import datetime, timedelta
 import os
 import sqlite3
 import hashlib
 import time
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 import re
 from PIL import Image, ImageDraw, ImageFont
 import io
@@ -12,11 +13,14 @@ import base64
 import qrcode
 import json
 import secrets
+from functools import wraps
 
 app = Flask(__name__, template_folder='.', static_folder='xxda')
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max file size
 app.config['DATABASE'] = 'students.db'
+app.config['SECRET_KEY'] = secrets.token_hex(32)  # For session management
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)  # Session expires after 2 hours
 
 # Create uploads directory if it doesn't exist
 if not os.path.exists('uploads'):
@@ -70,6 +74,14 @@ def init_db():
                   created_at TIMESTAMP,
                   deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
 
+    # Create admin table
+    c.execute('''CREATE TABLE IF NOT EXISTS admin
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  username TEXT UNIQUE NOT NULL DEFAULT 'admin',
+                  password_hash TEXT NOT NULL,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  last_login TIMESTAMP)''')
+
     conn.commit()
     conn.close()
 
@@ -112,6 +124,49 @@ def get_student_by_id_number(id_number):
     student = c.fetchone()
     conn.close()
     return student
+
+def admin_required(f):
+    """Decorator to require admin login"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'admin_logged_in' not in session:
+            return redirect(url_for('admin_login', next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def check_admin_exists():
+    """Check if admin account exists"""
+    conn = sqlite3.connect(app.config['DATABASE'])
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM admin")
+    count = c.fetchone()[0]
+    conn.close()
+    return count > 0
+
+def create_admin(password):
+    """Create admin account with password"""
+    conn = sqlite3.connect(app.config['DATABASE'])
+    c = conn.cursor()
+    password_hash = generate_password_hash(password)
+    try:
+        c.execute("INSERT INTO admin (username, password_hash) VALUES ('admin', ?)", (password_hash,))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False
+
+def verify_admin_password(password):
+    """Verify admin password"""
+    conn = sqlite3.connect(app.config['DATABASE'])
+    c = conn.cursor()
+    c.execute("SELECT password_hash FROM admin WHERE username = 'admin'")
+    result = c.fetchone()
+    conn.close()
+    if result:
+        return check_password_hash(result[0], password)
+    return False
 
 @app.route('/check_id_number', methods=['POST'])
 def check_id_number():
@@ -193,7 +248,21 @@ def submit():
     if 'admission_photo' in request.files:
         file = request.files['admission_photo']
         if file and file.filename:
-            filename = secure_filename(f"{query_id}_{file.filename}")
+            # Check file size (5MB limit)
+            file.seek(0, os.SEEK_END)
+            file_size = file.tell()
+            file.seek(0)  # Reset file pointer
+
+            if file_size > 5 * 1024 * 1024:  # 5MB
+                return jsonify({
+                    'error': 'file_too_large',
+                    'message': '文件大小超过5MB限制'
+                }), 413
+
+            # Generate filename: query_id-[8 random hex chars].extension
+            file_ext = os.path.splitext(secure_filename(file.filename))[1]
+            random_hex = secrets.token_hex(4)  # 8 hex characters
+            filename = f"{query_id}-{random_hex}{file_ext}"
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
             admission_photo = f'/uploads/{filename}'
@@ -432,6 +501,255 @@ def serve_placeholder():
     # Minimal transparent PNG (1x1 pixel)
     transparent_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05W\xcd\xca\x00\x00\x00\x00IEND\xaeB`\x82'
     return Response(transparent_png, mimetype='image/png')
+
+# Admin routes
+@app.route('/admin/login')
+def admin_login():
+    """Admin login page"""
+    return render_template('templates/admin_login.html')
+
+@app.route('/api/admin/check')
+def admin_check():
+    """Check if admin exists"""
+    return jsonify({'exists': check_admin_exists()})
+
+@app.route('/admin/setup', methods=['POST'])
+def admin_setup():
+    """Setup admin password for first time"""
+    if check_admin_exists():
+        return jsonify({'success': False, 'message': '管理员账户已存在'}), 400
+
+    password = request.json.get('password')
+    if not password or len(password) < 8:
+        return jsonify({'success': False, 'message': '密码长度至少8位'}), 400
+
+    if create_admin(password):
+        session['admin_logged_in'] = True
+        session.permanent = True
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'message': '创建管理员失败'}), 500
+
+@app.route('/admin/login', methods=['POST'])
+def admin_login_post():
+    """Admin login authentication"""
+    password = request.json.get('password')
+
+    if verify_admin_password(password):
+        session['admin_logged_in'] = True
+        session.permanent = True
+
+        # Update last login time
+        conn = sqlite3.connect(app.config['DATABASE'])
+        c = conn.cursor()
+        c.execute("UPDATE admin SET last_login = CURRENT_TIMESTAMP WHERE username = 'admin'")
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'message': '密码错误'}), 401
+
+@app.route('/admin/logout', methods=['POST'])
+def admin_logout():
+    """Admin logout"""
+    session.pop('admin_logged_in', None)
+    return jsonify({'success': True})
+
+@app.route('/admin/dashboard')
+@admin_required
+def admin_dashboard():
+    """Admin dashboard page"""
+    return render_template('templates/admin_dashboard.html')
+
+@app.route('/api/admin/statistics')
+@admin_required
+def admin_statistics():
+    """Get statistics for admin dashboard"""
+    conn = sqlite3.connect(app.config['DATABASE'])
+    c = conn.cursor()
+
+    # Total students
+    c.execute("SELECT COUNT(*) FROM students")
+    total = c.fetchone()[0]
+
+    # Today's additions
+    c.execute("SELECT COUNT(*) FROM students WHERE DATE(created_at) = DATE('now', 'localtime')")
+    today = c.fetchone()[0]
+
+    # Deleted students
+    c.execute("SELECT COUNT(*) FROM deleted_students")
+    deleted = c.fetchone()[0]
+
+    conn.close()
+
+    return jsonify({
+        'total': total,
+        'today': today,
+        'active': total,
+        'deleted': deleted
+    })
+
+@app.route('/api/admin/students')
+@admin_required
+def admin_get_students():
+    """Get paginated students list"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+
+    conn = sqlite3.connect(app.config['DATABASE'])
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    # Get total count
+    c.execute("SELECT COUNT(*) FROM students")
+    total = c.fetchone()[0]
+
+    # Get paginated students
+    offset = (page - 1) * per_page
+    c.execute("SELECT * FROM students ORDER BY created_at DESC LIMIT ? OFFSET ?", (per_page, offset))
+    students = [dict(row) for row in c.fetchall()]
+
+    conn.close()
+
+    return jsonify({
+        'students': students,
+        'page': page,
+        'totalPages': (total + per_page - 1) // per_page,
+        'total': total
+    })
+
+@app.route('/api/admin/students/search')
+@admin_required
+def admin_search_students():
+    """Search students"""
+    query = request.args.get('q', '')
+
+    conn = sqlite3.connect(app.config['DATABASE'])
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    search_term = f'%{query}%'
+    c.execute("""SELECT * FROM students
+                 WHERE name LIKE ? OR id_number LIKE ? OR student_id LIKE ?
+                 ORDER BY created_at DESC""",
+              (search_term, search_term, search_term))
+
+    students = [dict(row) for row in c.fetchall()]
+    conn.close()
+
+    return jsonify({'students': students})
+
+@app.route('/api/admin/student/<query_id>')
+@admin_required
+def admin_get_student(query_id):
+    """Get single student details"""
+    student = get_student_by_query_id(query_id)
+    if student:
+        return jsonify(dict(student))
+    else:
+        return jsonify({'error': 'Student not found'}), 404
+
+@app.route('/api/admin/student/<query_id>', methods=['PUT'])
+@admin_required
+def admin_update_student(query_id):
+    """Update student information"""
+    data = request.json
+
+    conn = sqlite3.connect(app.config['DATABASE'])
+    c = conn.cursor()
+
+    try:
+        c.execute("""UPDATE students SET
+                     name = ?, gender = ?, ethnicity = ?, id_number = ?,
+                     student_id = ?, school_name = ?, college = ?, major = ?,
+                     degree_level = ?, degree_type = ?, learning_format = ?,
+                     study_duration = ?, enrollment_date = ?, expected_graduation_date = ?
+                     WHERE query_id = ?""",
+                  (data['name'], data['gender'], data['ethnicity'], data['id_number'],
+                   data['student_id'], data['school_name'], data['college'], data['major'],
+                   data['degree_level'], data['degree_type'], data['learning_format'],
+                   data['study_duration'], data['enrollment_date'], data['expected_graduation_date'],
+                   query_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/admin/student', methods=['POST'])
+@admin_required
+def admin_add_student():
+    """Add new student"""
+    data = request.json
+    query_id = generate_query_id()
+
+    conn = sqlite3.connect(app.config['DATABASE'])
+    c = conn.cursor()
+
+    try:
+        c.execute("""INSERT INTO students
+                     (query_id, name, gender, ethnicity, id_number, student_id,
+                      school_name, college, major, degree_level, degree_type,
+                      learning_format, study_duration, enrollment_date,
+                      expected_graduation_date)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                  (query_id, data['name'], data['gender'], data['ethnicity'],
+                   data['id_number'], data['student_id'], data['school_name'],
+                   data['college'], data['major'], data['degree_level'],
+                   data['degree_type'], data['learning_format'],
+                   data['study_duration'], data['enrollment_date'],
+                   data['expected_graduation_date']))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'query_id': query_id})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/admin/student/<query_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_student(query_id):
+    """Delete student (soft delete)"""
+    return delete_student(query_id)
+
+@app.route('/api/admin/export')
+@admin_required
+def admin_export():
+    """Export all students data as CSV"""
+    import csv
+    from flask import Response
+
+    conn = sqlite3.connect(app.config['DATABASE'])
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM students ORDER BY created_at DESC")
+    students = c.fetchall()
+    conn.close()
+
+    def generate():
+        # CSV header
+        yield ','.join(['姓名', '性别', '身份证号', '学号', '学校', '学院', '专业', '学历', '入学日期', '毕业日期']) + '\n'
+
+        # CSV data
+        for student in students:
+            row = [
+                student['name'],
+                student['gender'],
+                student['id_number'],
+                student['student_id'],
+                student['school_name'],
+                student['college'],
+                student['major'],
+                student['degree_level'],
+                student['enrollment_date'],
+                student['expected_graduation_date']
+            ]
+            yield ','.join(row) + '\n'
+
+    return Response(generate(), mimetype='text/csv',
+                    headers={"Content-Disposition": "attachment;filename=students.csv"})
 
 if __name__ == '__main__':
     init_db()
