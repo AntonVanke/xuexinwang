@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生信息录入系统</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* Custom Modal Styles */
+        .custom-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .custom-modal.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-dialog {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+            position: relative;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .modal-close:hover {
+            opacity: 1;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .modal-info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .modal-info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .modal-info-label {
+            font-weight: 600;
+            color: #323130;
+        }
+
+        .modal-info-value {
+            color: #605e5c;
+        }
+
+        .modal-link {
+            background: #e3f2fd;
+            border-radius: 4px;
+            padding: 8px;
+            margin: 16px 0;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            color: #0078d4;
+        }
+
+        .modal-warning {
+            display: flex;
+            align-items: flex-start;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .modal-warning-icon {
+            color: #ffc107;
+            margin-right: 12px;
+            font-size: 20px;
+        }
+
+        .modal-warning-text {
+            color: #856404;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 10px 24px;
+            border-radius: 4px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-btn-primary {
+            background: #0078d4;
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            background: #106ebe;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 120, 212, 0.3);
+        }
+
+        .modal-btn-secondary {
+            background: #f3f2f1;
+            color: #323130;
+            border: 1px solid #d2d0ce;
+        }
+
+        .modal-btn-secondary:hover {
+            background: #e1dfdd;
+            transform: translateY(-1px);
+        }
+
+        .modal-btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .modal-btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            color: #323130;
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #605e5c;
+            text-align: center;
+            margin-bottom: 32px;
+            font-size: 14px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            position: relative;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+            color: #323130;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"],
+        input[type="date"],
+        input[type="file"],
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #edebe9;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            background: white;
+            color: #323130;
+            font-family: inherit;
+        }
+
+        input:hover,
+        select:hover {
+            border-color: #c8c6c4;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #0078d4;
+            box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px 16px;
+            border: 2px dashed #c8c6c4;
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #faf9f8;
+        }
+
+        .file-input-label:hover {
+            border-color: #0078d4;
+            background: #f3f2f1;
+        }
+
+        .file-input-label.has-file {
+            border-style: solid;
+            border-color: #107c10;
+            background: #f0fdf0;
+        }
+
+        .submit-btn {
+            background: #0078d4;
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: block;
+            margin: 0 auto;
+            min-width: 200px;
+        }
+
+        .submit-btn:hover {
+            background: #106ebe;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 120, 212, 0.3);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .required {
+            color: #d13438;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #323130;
+            margin: 30px 0 20px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #edebe9;
+        }
+
+        .preview-image {
+            max-width: 150px;
+            max-height: 150px;
+            margin-top: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .error-message {
+            color: #d13438;
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .error input {
+            border-color: #d13438;
+        }
+
+        .photo-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .photo-section .section-title {
+            margin-top: 0;
+            border: none;
+            padding-bottom: 0;
+            margin-bottom: 20px;
+        }
+
+        /* Flatpickr custom styles */
+        .flatpickr-input {
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23323130' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 40px !important;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>学生信息录入系统</h1>
+        <p class="subtitle">请输入学生学籍注册信息</p>
+
+        <form action="/submit" method="POST" enctype="multipart/form-data" id="studentForm">
+            <!-- Photo Upload Section (Moved to top) -->
+            <div class="photo-section">
+                <div class="section-title">录取照片上传</div>
+                <div class="form-group">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="admission_photo" name="admission_photo" accept="image/*" onchange="handleFileSelect(this)">
+                        <label for="admission_photo" class="file-input-label" id="admission_photo_label">
+                            点击选择录取照片
+                        </label>
+                        <img id="admission_preview" class="preview-image" style="display: none;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-title">个人信息</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>姓名 <span class="required">*</span></label>
+                    <input type="text" name="name" required placeholder="请输入学生姓名">
+                </div>
+
+                <div class="form-group">
+                    <label>证件号码 <span class="required">*</span></label>
+                    <input type="text" name="id_number" id="id_number" required placeholder="请输入18位身份证号码" maxlength="18">
+                    <span class="error-message" id="id_error">请输入有效的身份证号码</span>
+                </div>
+
+                <div class="form-group">
+                    <label>性别 <span class="required">*</span></label>
+                    <select name="gender" id="gender" required>
+                        <option value="">自动识别</option>
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>民族 <span class="required">*</span></label>
+                    <input type="text" name="ethnicity" required placeholder="例如：汉族">
+                </div>
+            </div>
+
+            <div class="section-title">学籍信息</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>学号 <span class="required">*</span></label>
+                    <input type="text" name="student_id" id="student_id" required placeholder="自动生成">
+                </div>
+
+                <div class="form-group">
+                    <label>学校名称 <span class="required">*</span></label>
+                    <input type="text" name="school_name" required placeholder="请输入学校名称">
+                </div>
+
+                <div class="form-group">
+                    <label>学院/分院 <span class="required">*</span></label>
+                    <input type="text" name="college" id="college" required placeholder="自动选择">
+                </div>
+
+                <div class="form-group">
+                    <label>专业名称 <span class="required">*</span></label>
+                    <input type="text" name="major" required placeholder="例如：计算机科学与技术">
+                </div>
+
+                <div class="form-group">
+                    <label>学历层次 <span class="required">*</span></label>
+                    <select name="degree_level" required>
+                        <option value="专科">专科</option>
+                        <option value="本科" selected>本科</option>
+                        <option value="硕士研究生">硕士研究生</option>
+                        <option value="博士研究生">博士研究生</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>学历类别 <span class="required">*</span></label>
+                    <select name="degree_type" required>
+                        <option value="普通高等教育" selected>普通高等教育</option>
+                        <option value="成人高等教育">成人高等教育</option>
+                        <option value="高等教育自学考试">高等教育自学考试</option>
+                        <option value="网络教育">网络教育</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>学习形式 <span class="required">*</span></label>
+                    <select name="learning_format" required>
+                        <option value="普通全日制">普通全日制</option>
+                        <option value="非全日制">非全日制</option>
+                        <option value="网络教育">网络教育</option>
+                        <option value="成人教育">成人教育</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>学制（年） <span class="required">*</span></label>
+                    <select name="study_duration" id="study_duration" required onchange="updateDates()">
+                        <option value="2">2</option>
+                        <option value="2.5">2.5</option>
+                        <option value="3">3</option>
+                        <option value="4" selected>4</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>入学日期 <span class="required">*</span></label>
+                    <input type="text" name="enrollment_date" id="enrollment_date" required placeholder="自动计算">
+                </div>
+
+                <div class="form-group">
+                    <label>预计毕业日期 <span class="required">*</span></label>
+                    <input type="text" name="expected_graduation_date" id="graduation_date" required placeholder="自动计算">
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn">提交信息</button>
+        </form>
+    </div>
+
+    <script>
+        // List of colleges
+        const colleges = [
+            '安全科学与工程学院',
+            '材料科学与工程学院',
+            '财经学院',
+            '测绘与国土信息工程学院',
+            '电气工程与自动化学院',
+            '工商管理学院',
+            '化学化工学院',
+            '机械与动力工程学院',
+            '计算机科学与技术学院',
+            '建筑与艺术设计学院',
+            '能源科学与工程学院',
+            '软件学院',
+            '数学与信息科学学院',
+            '体育学院',
+            '土木工程学院',
+            '外国语学院',
+            '文法学院',
+            '物理与电子信息学院',
+            '医学院',
+            '音乐学院',
+            '应急管理学院',
+            '资源环境学院'
+        ];
+
+        // Select random college
+        function selectRandomCollege() {
+            const randomIndex = Math.floor(Math.random() * colleges.length);
+            return colleges[randomIndex];
+        }
+
+        // Generate student ID
+        function generateStudentId() {
+            const now = new Date();
+            const year = now.getFullYear();
+
+            // Calculate enrollment year based on current date
+            let enrollmentYear;
+            const studyDuration = parseFloat(document.getElementById('study_duration').value);
+
+            // If after July, assume next year's graduation
+            if (now.getMonth() >= 6) { // July is month 6 (0-indexed)
+                enrollmentYear = year - Math.floor(studyDuration) + 1;
+            } else {
+                enrollmentYear = year - Math.floor(studyDuration);
+            }
+
+            const yearSuffix = enrollmentYear.toString().slice(-2);
+            const randomNum = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+            return '31' + yearSuffix + randomNum;
+        }
+
+        // Update dates based on study duration
+        function updateDates() {
+            const studyDuration = parseFloat(document.getElementById('study_duration').value);
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth(); // 0-indexed
+
+            // Calculate graduation date
+            let graduationYear;
+            if (currentMonth >= 6) { // After July 1st
+                graduationYear = currentYear + 1;
+            } else {
+                graduationYear = currentYear;
+            }
+            const graduationDate = graduationYear + '-07-01';
+
+            // Calculate enrollment date
+            const enrollmentYear = graduationYear - Math.floor(studyDuration);
+            const enrollmentDate = enrollmentYear + '-09-01';
+
+            // Update form fields
+            document.getElementById('graduation_date').value = graduationDate;
+            document.getElementById('enrollment_date').value = enrollmentDate;
+
+            // Update student ID
+            document.getElementById('student_id').value = generateStudentId();
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDates();
+            // Set random college
+            document.getElementById('college').value = selectRandomCollege();
+
+            // Initialize date pickers with default values
+            flatpickr("#enrollment_date", {
+                dateFormat: "Y-m-d",
+                defaultDate: document.getElementById('enrollment_date').value,
+                allowInput: true
+            });
+
+            flatpickr("#graduation_date", {
+                dateFormat: "Y-m-d",
+                defaultDate: document.getElementById('graduation_date').value,
+                allowInput: true
+            });
+        });
+
+        // Handle file selection and preview
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            const labelId = input.id + '_label';
+            const previewId = 'admission_preview';
+            const label = document.getElementById(labelId);
+            const preview = document.getElementById(previewId);
+
+            if (file) {
+                label.textContent = file.name;
+                label.classList.add('has-file');
+
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // ID number validation
+        function validateIdNumber(idNumber) {
+            // Basic format check
+            const pattern = /^\d{17}[\dXx]$/;
+            if (!pattern.test(idNumber)) {
+                return false;
+            }
+
+            // Checksum validation
+            const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+            const checkCodes = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
+
+            let sum = 0;
+            for (let i = 0; i < 17; i++) {
+                sum += parseInt(idNumber[i]) * weights[i];
+            }
+
+            const checkCode = checkCodes[sum % 11];
+            return checkCode === idNumber[17].toUpperCase();
+        }
+
+        // Extract gender from ID number
+        function extractGenderFromId(idNumber) {
+            if (!idNumber || idNumber.length < 17) {
+                return '';
+            }
+            // The 17th digit determines gender: odd for male, even for female
+            const genderDigit = parseInt(idNumber[16]);
+            return genderDigit % 2 === 1 ? '男' : '女';
+        }
+
+        // Global variable for modal
+        let currentDuplicateData = null;
+
+        // Modal functions
+        function showModal(data) {
+            currentDuplicateData = data;
+            document.getElementById('existingName').textContent = data.name;
+            document.getElementById('existingId').textContent = document.getElementById('id_number').value;
+            document.getElementById('existingLink').textContent = data.view_url;
+            document.getElementById('duplicateModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('duplicateModal').classList.remove('show');
+            currentDuplicateData = null;
+            // Reset force update flag when closing modal
+            document.getElementById('id_number').dataset.forceUpdate = 'false';
+        }
+
+        function viewExisting() {
+            if (currentDuplicateData) {
+                window.location.href = currentDuplicateData.view_url;
+            }
+        }
+
+        function confirmOverwrite() {
+            // Set force update flag and resubmit
+            document.getElementById('id_number').dataset.forceUpdate = 'true';
+            if (currentDuplicateData) {
+                document.getElementById('id_number').dataset.existingQueryId = currentDuplicateData.query_id;
+            }
+            closeModal();
+            // Re-submit the form with force update flag
+            document.getElementById('studentForm').dispatchEvent(new Event('submit'));
+        }
+
+        // Add input event for real-time gender extraction
+        document.getElementById('id_number').addEventListener('input', function() {
+            const idNumber = this.value;
+
+            // Extract and set gender when ID number has enough digits
+            if (idNumber.length >= 17) {
+                const gender = extractGenderFromId(idNumber);
+                if (gender) {
+                    document.getElementById('gender').value = gender;
+                }
+            } else {
+                // Clear gender when ID is incomplete
+                document.getElementById('gender').value = '';
+            }
+        });
+
+        // Add ID number validation on blur (only validate format, no duplicate check)
+        document.getElementById('id_number').addEventListener('blur', function(e) {
+            const idNumber = this.value;
+            const errorMsg = document.getElementById('id_error');
+            const formGroup = this.parentElement;
+
+            // Validate format
+            if (idNumber && !validateIdNumber(idNumber)) {
+                formGroup.classList.add('error');
+                errorMsg.style.display = 'block';
+            } else {
+                formGroup.classList.remove('error');
+                errorMsg.style.display = 'none';
+
+                // Auto-fill gender on blur
+                if (idNumber && validateIdNumber(idNumber)) {
+                    const gender = extractGenderFromId(idNumber);
+                    if (gender) {
+                        document.getElementById('gender').value = gender;
+                    }
+                }
+            }
+        });
+
+        // Form submission validation and handling
+        document.getElementById('studentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const idNumber = document.getElementById('id_number').value;
+            const idField = document.getElementById('id_number');
+
+            // Validate ID number format
+            if (!validateIdNumber(idNumber)) {
+                alert('请输入有效的身份证号码');
+                idField.focus();
+                return;
+            }
+
+            // Check for duplicate only on first submission attempt
+            if (idField.dataset.forceUpdate !== 'true') {
+                try {
+                    const checkResponse = await fetch('/check_id_number', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ id_number: idNumber })
+                    });
+
+                    const checkData = await checkResponse.json();
+                    if (checkData.exists) {
+                        // Show modal for duplicate
+                        showModal(checkData);
+                        return; // Stop submission, wait for user decision
+                    }
+                } catch (error) {
+                    console.error('Error checking ID number:', error);
+                }
+            }
+
+            // Proceed with submission
+            const formData = new FormData(this);
+
+            // Add force update flag if user confirmed update
+            if (idField.dataset.forceUpdate === 'true') {
+                formData.append('force_update', 'true');
+            }
+
+            try {
+                const response = await fetch('/submit', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    // If successful, redirect
+                    window.location.href = response.url;
+                } else {
+                    const errorText = await response.text();
+                    alert('提交失败：' + errorText);
+                }
+            } catch (error) {
+                alert('提交失败：' + error.message);
+            }
+        });
+    </script>
+    <!-- Custom Modal for Duplicate ID -->
+    <div id="duplicateModal" class="custom-modal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>身份证号已存在</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-info">
+                    <div class="modal-info-row">
+                        <span class="modal-info-label">学生姓名：</span>
+                        <span class="modal-info-value" id="existingName"></span>
+                    </div>
+                    <div class="modal-info-row">
+                        <span class="modal-info-label">身份证号：</span>
+                        <span class="modal-info-value" id="existingId"></span>
+                    </div>
+                </div>
+
+                <div class="modal-link" id="existingLink"></div>
+
+                <div class="modal-warning">
+                    <span class="modal-warning-icon">⚠</span>
+                    <span class="modal-warning-text">
+                        重新提交将覆盖原有数据，但访问链接保持不变。<br>
+                        请确认是否要更新该学生的信息。
+                    </span>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="modal-btn modal-btn-secondary" onclick="viewExisting()">查看现有信息</button>
+                    <button class="modal-btn modal-btn-danger" onclick="confirmOverwrite()">覆盖数据</button>
+                    <button class="modal-btn modal-btn-primary" onclick="closeModal()">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

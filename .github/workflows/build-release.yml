@@ -1,0 +1,144 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install flask werkzeug pillow qrcode[pil]
+
+    - name: Create executable with PyInstaller
+      run: |
+        # Create wrapper script for proper command-line handling
+        pyinstaller --onefile \
+          --name xuexinwang \
+          --add-data "templates:templates" \
+          --add-data "xxda:xxda" \
+          --hidden-import flask \
+          --hidden-import werkzeug \
+          --hidden-import PIL \
+          --hidden-import qrcode \
+          --collect-submodules flask \
+          --collect-submodules werkzeug \
+          --collect-submodules PIL \
+          --collect-submodules qrcode \
+          app_wrapper.py
+
+    - name: Create release archive
+      run: |
+        mkdir -p release/xuexinwang
+        cp dist/xuexinwang release/xuexinwang/
+        cp -r templates release/xuexinwang/
+        cp -r xxda release/xuexinwang/
+        # Create initial database
+        echo "Creating initial database..."
+        python -c "from app import init_db; init_db()"
+        cp students.db release/xuexinwang/
+        # Create uploads directory
+        mkdir -p release/xuexinwang/uploads
+        # Create config template
+        cat > release/xuexinwang/config.json << 'EOF'
+        {
+          "port": 5000,
+          "host": "127.0.0.1",
+          "debug": false
+        }
+        EOF
+        # Create README
+        cat > release/xuexinwang/README.md << 'EOF'
+        # 学信网档案管理系统
+
+        ## 快速开始
+
+        1. 运行安装脚本：
+        ```bash
+        curl -sSL https://raw.githubusercontent.com/AntonVanke/xuexinwang/main/install.sh | bash
+        ```
+
+        2. 或手动运行：
+        ```bash
+        ./xuexinwang
+        ```
+
+        ## 配置
+
+        编辑 `config.json` 文件来修改端口和访问设置。
+
+        ## 服务管理
+
+        - 启动服务：`sudo systemctl start xuexinwang`
+        - 停止服务：`sudo systemctl stop xuexinwang`
+        - 重启服务：`sudo systemctl restart xuexinwang`
+        - 查看状态：`sudo systemctl status xuexinwang`
+        EOF
+
+        # Package everything
+        cd release
+        tar -czf xuexinwang-linux-amd64.tar.gz xuexinwang
+        cd ..
+
+    - name: Get version
+      id: get_version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
+        name: Release ${{ steps.get_version.outputs.VERSION }}
+        body: |
+          ## 学信网档案管理系统 ${{ steps.get_version.outputs.VERSION }}
+
+          ### 安装方法
+
+          使用安装脚本（推荐）：
+          ```bash
+          curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+          ```
+
+          或手动下载并安装：
+          ```bash
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/xuexinwang-linux-amd64.tar.gz
+          tar -xzf xuexinwang-linux-amd64.tar.gz
+          cd xuexinwang
+          ./xuexinwang
+          ```
+
+          ### 更新内容
+          - 优化图片上传功能
+          - 文件大小限制为5MB
+          - 改进文件命名格式
+        draft: false
+        prerelease: false
+        files: ./release/xuexinwang-linux-amd64.tar.gz

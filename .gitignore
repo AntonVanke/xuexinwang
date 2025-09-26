@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+
+# Uploads
+uploads/
+
+# IDE
+.idea/
+.vscode/
+
+# Local settings
+.claude/
+
+# Environment
+venv/
+env/
+.env

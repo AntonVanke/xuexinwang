@@ -1,0 +1,17 @@
+@charset "utf-8";
+@font-face {
+    font-family: 'rare-words-font';
+    src: url('RareWordsFonts-v1.0.12.woff2') format('woff2'),
+    url('RareWordsFonts-v1.0.12.woff') format('woff'),    
+    url('RareWordsFonts-v1.0.12.ttf') format('truetype');
+}
+.rare-words-font{
+    font-family: "rare-words-font";
+    font-style: normal;
+}
+.namtFamily{
+    font-family:"Helvetica Neue",Helvetica,"PingFang SC","Microsoft YaHei","Hiragino Sans GB","WenQuanYi Micro Hei",Arial,"sans-serif",SimSun,"rare-words-font";
+}
+.nameFamily{
+    font-family:"Helvetica Neue",Helvetica,"PingFang SC","Microsoft YaHei","Hiragino Sans GB","WenQuanYi Micro Hei",Arial,"sans-serif",SimSun,"rare-words-font";
+}
