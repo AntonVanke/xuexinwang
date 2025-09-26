@@ -14,7 +14,7 @@ def main():
     init_db()
 
     # Default configuration
-    host = "127.0.0.1"
+    host = "0.0.0.0"  # 默认允许公网访问
     port = 5000
     debug = False
 

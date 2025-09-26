@@ -71,7 +71,7 @@ jobs:
         cat > release/xuexinwang/config.json << 'EOF'
         {
           "port": 5000,
-          "host": "127.0.0.1",
+          "host": "0.0.0.0",
           "debug": false
         }
         EOF
@@ -202,7 +202,7 @@ jobs:
         @"
         {
           "port": 5000,
-          "host": "127.0.0.1",
+          "host": "0.0.0.0",
           "debug": false
         }
         "@ | Out-File -Encoding UTF8 release\xuexinwang\config.json

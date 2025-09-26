@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Default values
 DEFAULT_PORT=5000
-DEFAULT_HOST="127.0.0.1"
+DEFAULT_HOST="0.0.0.0"  # 默认允许公网访问
 INSTALL_DIR="/opt/xuexinwang"
 SERVICE_NAME="xuexinwang"
 SERVICE_USER="xuexinwang"
@@ -89,18 +89,18 @@ configure_installation() {
     # External access configuration
     print_message "\n是否允许外部访问？" "$BLUE"
     print_message "  1) 仅本机访问 (127.0.0.1)" "$NC"
-    print_message "  2) 允许局域网访问 (0.0.0.0)" "$NC"
-    read -p "请选择 (1-2, 默认: 1): " ACCESS_CHOICE
+    print_message "  2) 允许公网访问 (0.0.0.0)" "$NC"
+    read -p "请选择 (1-2, 默认: 2): " ACCESS_CHOICE
 
     case $ACCESS_CHOICE in
-        2)
-            HOST="0.0.0.0"
-            print_message "已设置为允许外部访问" "$GREEN"
-            print_message "警告: 请确保已配置防火墙规则" "$YELLOW"
+        1)
+            HOST="127.0.0.1"
+            print_message "已设置为仅本机访问" "$GREEN"
             ;;
         *)
-            HOST=$DEFAULT_HOST
-            print_message "已设置为仅本机访问" "$GREEN"
+            HOST="0.0.0.0"
+            print_message "已设置为允许公网访问" "$GREEN"
+            print_message "提示: 请确保防火墙已开放端口 $PORT" "$YELLOW"
             ;;
     esac
 
@@ -370,6 +370,30 @@ configure_firewall() {
                 print_message "已添加防火墙规则" "$GREEN"
             fi
         fi
+
+        # Check for iptables
+        if command -v iptables &> /dev/null; then
+            if ! iptables -L INPUT -n | grep -q "dpt:$PORT"; then
+                read -p "是否添加iptables规则允许端口 $PORT？(y/n): " -n 1 -r
+                echo
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    iptables -I INPUT -p tcp --dport $PORT -j ACCEPT
+                    # Try to save iptables rules
+                    if command -v netfilter-persistent &> /dev/null; then
+                        netfilter-persistent save
+                    elif command -v iptables-save &> /dev/null; then
+                        iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
+                    fi
+                    print_message "已添加iptables规则" "$GREEN"
+                fi
+            fi
+        fi
+
+        # Cloud provider security group reminder
+        print_message "\n重要提示：" "$YELLOW"
+        print_message "如果您使用的是云服务器（阿里云、腾讯云、AWS等），" "$YELLOW"
+        print_message "请确保在云控制台的安全组/防火墙规则中开放端口 $PORT" "$YELLOW"
+        print_message "这是最常见的无法访问原因！" "$RED"
     fi
 }
 
