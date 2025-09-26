@@ -260,7 +260,31 @@ def submit():
                 }), 413
 
             # Generate filename: query_id-[8 random hex chars].extension
-            file_ext = os.path.splitext(secure_filename(file.filename))[1]
+            original_filename = secure_filename(file.filename) if file.filename else 'photo'
+            file_ext = os.path.splitext(original_filename)[1].lower()
+
+            # If no extension or invalid extension, determine from file content
+            if not file_ext or file_ext not in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
+                # Read first few bytes to determine file type
+                file.seek(0)
+                header = file.read(12)
+                file.seek(0)
+
+                # Detect file type from magic bytes
+                if header[:3] == b'\xff\xd8\xff':
+                    file_ext = '.jpg'
+                elif header[:8] == b'\x89PNG\r\n\x1a\n':
+                    file_ext = '.png'
+                elif header[:4] == b'GIF8':
+                    file_ext = '.gif'
+                elif header[:4] == b'RIFF' and header[8:12] == b'WEBP':
+                    file_ext = '.webp'
+                elif header[:2] == b'BM':
+                    file_ext = '.bmp'
+                else:
+                    # Default to .jpg if cannot determine
+                    file_ext = '.jpg'
+
             random_hex = secrets.token_hex(4)  # 8 hex characters
             filename = f"{query_id}-{random_hex}{file_ext}"
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -491,7 +515,32 @@ def serve_static(filename):
 # Route to serve uploaded files
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):
-    return send_from_directory('uploads', filename)
+    # Ensure uploads directory exists
+    uploads_dir = os.path.join(app.root_path, 'uploads')
+    if not os.path.exists(uploads_dir):
+        os.makedirs(uploads_dir)
+
+    file_path = os.path.join(uploads_dir, filename)
+
+    # Check if file exists
+    if not os.path.exists(file_path):
+        # Return a placeholder image or 404
+        return "File not found", 404
+
+    # Determine MIME type from extension
+    ext = os.path.splitext(filename)[1].lower()
+    mime_types = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.bmp': 'image/bmp',
+        '.webp': 'image/webp'
+    }
+
+    mimetype = mime_types.get(ext, 'application/octet-stream')
+
+    return send_from_directory('uploads', filename, mimetype=mimetype)
 
 # Route to serve placeholder image
 @app.route('/temp/img_1.png')
