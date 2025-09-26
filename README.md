@@ -17,7 +17,7 @@
 ### 方式一：使用安装脚本（Linux，推荐）
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/AntonVanke/xuexinwang/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/AntonVanke/xuexinwang/master/install.sh | bash
 ```
 
 安装脚本提供交互式配置：

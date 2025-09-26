@@ -86,7 +86,7 @@ jobs:
 
         1. 运行安装脚本：
         ```bash
-        curl -sSL https://raw.githubusercontent.com/AntonVanke/xuexinwang/main/install.sh | bash
+        curl -sSL https://raw.githubusercontent.com/AntonVanke/xuexinwang/master/install.sh | bash
         ```
 
         2. 或手动运行：
@@ -132,7 +132,7 @@ jobs:
 
           使用安装脚本（推荐）：
           ```bash
-          curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+          curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/master/install.sh | bash
           ```
 
           或手动下载并安装：
