@@ -30,30 +30,35 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller
+        pip install nuitka
         pip install flask werkzeug pillow qrcode[pil]
+        # Install patchelf for Linux
+        sudo apt-get update
+        sudo apt-get install -y patchelf ccache
 
-    - name: Create executable with PyInstaller
+    - name: Create executable with Nuitka
       run: |
-        # Create wrapper script for proper command-line handling
-        pyinstaller --onefile \
-          --name xuexinwang \
-          --add-data "templates:templates" \
-          --add-data "xxda:xxda" \
-          --hidden-import flask \
-          --hidden-import werkzeug \
-          --hidden-import PIL \
-          --hidden-import qrcode \
-          --collect-submodules flask \
-          --collect-submodules werkzeug \
-          --collect-submodules PIL \
-          --collect-submodules qrcode \
+        # Create standalone executable with Nuitka
+        python -m nuitka \
+          --standalone \
+          --onefile \
+          --assume-yes-for-downloads \
+          --output-filename=xuexinwang \
+          --include-data-dir=templates=templates \
+          --include-data-dir=xxda=xxda \
+          --include-package=flask \
+          --include-package=werkzeug \
+          --include-package=PIL \
+          --include-package=qrcode \
+          --enable-plugin=anti-bloat \
+          --show-progress \
+          --show-memory \
           app_wrapper.py
 
     - name: Create release archive
       run: |
         mkdir -p release/xuexinwang
-        cp dist/xuexinwang release/xuexinwang/
+        cp xuexinwang release/xuexinwang/
         cp -r templates release/xuexinwang/
         cp -r xxda release/xuexinwang/
         # Create initial database
@@ -142,3 +147,88 @@ jobs:
         draft: false
         prerelease: false
         files: ./release/xuexinwang-linux-amd64.tar.gz
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install nuitka
+        pip install flask werkzeug pillow qrcode[pil]
+
+    - name: Create executable with Nuitka
+      run: |
+        # Create standalone executable with Nuitka
+        python -m nuitka `
+          --standalone `
+          --onefile `
+          --windows-console-mode=attach `
+          --assume-yes-for-downloads `
+          --output-filename=xuexinwang.exe `
+          --include-data-dir=templates=templates `
+          --include-data-dir=xxda=xxda `
+          --include-package=flask `
+          --include-package=werkzeug `
+          --include-package=PIL `
+          --include-package=qrcode `
+          --enable-plugin=anti-bloat `
+          --show-progress `
+          --show-memory `
+          app_wrapper.py
+
+    - name: Create release archive
+      run: |
+        New-Item -ItemType Directory -Force -Path release\xuexinwang
+        Copy-Item xuexinwang.exe -Destination release\xuexinwang\
+        Copy-Item -Recurse templates -Destination release\xuexinwang\
+        Copy-Item -Recurse xxda -Destination release\xuexinwang\
+        # Create initial database
+        Write-Host "Creating initial database..."
+        python -c "from app import init_db; init_db()"
+        Copy-Item students.db -Destination release\xuexinwang\
+        # Create uploads directory
+        New-Item -ItemType Directory -Force -Path release\xuexinwang\uploads
+        # Create config template
+        @"
+        {
+          "port": 5000,
+          "host": "127.0.0.1",
+          "debug": false
+        }
+        "@ | Out-File -Encoding UTF8 release\xuexinwang\config.json
+        # Create batch file
+        @"
+        @echo off
+        title 学信网档案管理系统
+        echo 正在启动学信网档案管理系统...
+        xuexinwang.exe
+        pause
+        "@ | Out-File -Encoding UTF8 release\xuexinwang\启动.bat
+        # Package everything
+        Compress-Archive -Path release\xuexinwang -DestinationPath release\xuexinwang-windows-amd64.zip
+
+    - name: Get version
+      id: get_version
+      run: |
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          echo "VERSION=${{ github.event.inputs.version }}" >> $env:GITHUB_OUTPUT
+        } else {
+          $version = "${{ github.ref }}".Replace("refs/tags/", "")
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        }
+
+    - name: Upload Windows Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
+        files: ./release/xuexinwang-windows-amd64.zip

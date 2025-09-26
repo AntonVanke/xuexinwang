@@ -151,12 +151,51 @@ download_and_extract() {
     TEMP_DIR=$(mktemp -d)
     cd $TEMP_DIR
 
-    # Download release
-    if ! wget -q --show-progress "$DOWNLOAD_URL" -O xuexinwang.tar.gz; then
-        print_message "下载失败" "$RED"
+    # Download release with better progress display
+    print_message "下载地址: $DOWNLOAD_URL" "$YELLOW"
+
+    # Check if curl is available (better progress display than wget)
+    if command -v curl &> /dev/null; then
+        print_message "使用 curl 下载（显示进度）..." "$BLUE"
+        if ! curl -L --progress-bar --connect-timeout 30 --retry 3 --retry-delay 5 \
+                  -o xuexinwang.tar.gz "$DOWNLOAD_URL"; then
+            print_message "下载失败，尝试使用备用方法..." "$YELLOW"
+            # Fallback to wget
+            if ! wget --progress=bar:force --timeout=30 --tries=3 \
+                     "$DOWNLOAD_URL" -O xuexinwang.tar.gz; then
+                print_message "下载失败，请检查网络连接" "$RED"
+                print_message "如果持续失败，您可以手动下载: $DOWNLOAD_URL" "$YELLOW"
+                rm -rf $TEMP_DIR
+                exit 1
+            fi
+        fi
+    else
+        print_message "使用 wget 下载（显示进度）..." "$BLUE"
+        if ! wget --progress=bar:force --timeout=30 --tries=3 \
+                 "$DOWNLOAD_URL" -O xuexinwang.tar.gz; then
+            print_message "下载失败，请检查网络连接" "$RED"
+            print_message "如果持续失败，您可以手动下载: $DOWNLOAD_URL" "$YELLOW"
+            rm -rf $TEMP_DIR
+            exit 1
+        fi
+    fi
+
+    # Verify download
+    if [ ! -f xuexinwang.tar.gz ]; then
+        print_message "下载文件不存在，下载失败" "$RED"
         rm -rf $TEMP_DIR
         exit 1
     fi
+
+    # Check file size (should be at least 1MB)
+    FILE_SIZE=$(stat -c%s xuexinwang.tar.gz 2>/dev/null || stat -f%z xuexinwang.tar.gz 2>/dev/null)
+    if [ "$FILE_SIZE" -lt 1048576 ]; then
+        print_message "下载的文件过小，可能下载不完整" "$RED"
+        rm -rf $TEMP_DIR
+        exit 1
+    fi
+
+    print_message "下载完成，文件大小: $(($FILE_SIZE / 1048576)) MB" "$GREEN"
 
     print_message "正在解压..." "$BLUE"
     tar -xzf xuexinwang.tar.gz
