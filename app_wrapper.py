@@ -35,13 +35,25 @@ def main():
     config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
     if os.path.exists(config_file):
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-                host = config.get('host', host)
-                port = config.get('port', port)
+                # Get values with proper validation
+                config_host = config.get('host', '').strip()
+                config_port = config.get('port', 0)
+
+                # Validate and use config values
+                if config_host and config_host != "":
+                    host = config_host
+                if isinstance(config_port, int) and config_port > 0 and config_port <= 65535:
+                    port = config_port
+
                 debug = config.get('debug', debug)
+
+                print(f"Loaded config from {config_file}")
+                print(f"Config values - Host: {host}, Port: {port}, Debug: {debug}")
         except Exception as e:
             print(f"Error reading config file: {e}")
+            print(f"Using default values - Host: {host}, Port: {port}")
 
     # Run the application
     print(f"Starting XueXinWang Archive Management System...")

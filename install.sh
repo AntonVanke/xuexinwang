@@ -299,8 +299,23 @@ else
     CONFIG_FILE="$(dirname "$0")/config.json"
 
     if [ -f "$CONFIG_FILE" ]; then
-        PORT=$(grep -o '"port":[^,}]*' "$CONFIG_FILE" | cut -d: -f2 | tr -d ' ')
-        HOST=$(grep -o '"host":"[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
+        # Use Python to parse JSON properly
+        if command -v python3 &> /dev/null; then
+            PORT=$(python3 -c "import json; print(json.load(open('$CONFIG_FILE')).get('port', 5000))")
+            HOST=$(python3 -c "import json; print(json.load(open('$CONFIG_FILE')).get('host', '0.0.0.0'))")
+        else
+            # Fallback to improved grep parsing
+            PORT=$(grep -o '"port":[^,}]*' "$CONFIG_FILE" | sed 's/"port"://g' | tr -d '," ')
+            HOST=$(grep -o '"host":"[^"]*' "$CONFIG_FILE" | sed 's/"host":"//g' | tr -d '"')
+        fi
+
+        # Validate values
+        if [ -z "$PORT" ]; then
+            PORT=5000
+        fi
+        if [ -z "$HOST" ]; then
+            HOST="0.0.0.0"
+        fi
     else
         PORT=5000
         HOST="0.0.0.0"
