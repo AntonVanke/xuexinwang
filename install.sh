@@ -275,26 +275,40 @@ create_wrapper_script() {
     cat > "$INSTALL_DIR/start.sh" << 'EOF'
 #!/bin/bash
 
-# Load configuration
-CONFIG_FILE="$(dirname "$0")/config.json"
-
-if [ -f "$CONFIG_FILE" ]; then
-    PORT=$(grep -o '"port":[^,}]*' "$CONFIG_FILE" | cut -d: -f2 | tr -d ' ')
-    HOST=$(grep -o '"host":"[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
-else
-    PORT=5000
-    HOST="127.0.0.1"
-fi
-
 # Change to application directory
 cd "$(dirname "$0")"
 
-# Export Flask environment variables
-export FLASK_APP=app.py
-export FLASK_ENV=production
+# Check if running from source or compiled
+if [ -f "app.py" ]; then
+    # Running from source - use Gunicorn
+    echo "Starting with Gunicorn (production server)..."
 
-# Start the application
-exec ./xuexinwang --host "$HOST" --port "$PORT"
+    # Check if gunicorn is installed
+    if ! command -v gunicorn &> /dev/null; then
+        echo "Installing Gunicorn..."
+        pip install gunicorn
+    fi
+
+    # Start with Gunicorn
+    exec gunicorn -c gunicorn_config.py app:app
+else
+    # Running compiled version
+    echo "Starting compiled version..."
+
+    # Load configuration
+    CONFIG_FILE="$(dirname "$0")/config.json"
+
+    if [ -f "$CONFIG_FILE" ]; then
+        PORT=$(grep -o '"port":[^,}]*' "$CONFIG_FILE" | cut -d: -f2 | tr -d ' ')
+        HOST=$(grep -o '"host":"[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
+    else
+        PORT=5000
+        HOST="0.0.0.0"
+    fi
+
+    # Start the application
+    exec ./xuexinwang --host "$HOST" --port "$PORT"
+fi
 EOF
 
     chmod +x "$INSTALL_DIR/start.sh"

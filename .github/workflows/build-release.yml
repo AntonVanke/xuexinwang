@@ -31,7 +31,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install nuitka
-        pip install flask werkzeug pillow qrcode[pil]
+        pip install flask werkzeug pillow qrcode[pil] gunicorn
         # Install patchelf for Linux
         sudo apt-get update
         sudo apt-get install -y patchelf ccache
@@ -61,6 +61,9 @@ jobs:
         cp xuexinwang release/xuexinwang/
         cp -r templates release/xuexinwang/
         cp -r xxda release/xuexinwang/
+        # Copy Gunicorn config
+        cp gunicorn_config.py release/xuexinwang/
+        cp requirements.txt release/xuexinwang/
         # Create initial database
         echo "Creating initial database..."
         python -c "from app import init_db; init_db()"
@@ -164,7 +167,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install nuitka
-        pip install flask werkzeug pillow qrcode[pil]
+        pip install flask werkzeug pillow qrcode[pil] gunicorn
 
     - name: Create executable with Nuitka
       run: |
@@ -192,6 +195,9 @@ jobs:
         Copy-Item xuexinwang.exe -Destination release\xuexinwang\
         Copy-Item -Recurse templates -Destination release\xuexinwang\
         Copy-Item -Recurse xxda -Destination release\xuexinwang\
+        # Copy Gunicorn config and requirements
+        Copy-Item gunicorn_config.py -Destination release\xuexinwang\
+        Copy-Item requirements.txt -Destination release\xuexinwang\
         # Create initial database
         Write-Host "Creating initial database..."
         python -c "from app import init_db; init_db()"
