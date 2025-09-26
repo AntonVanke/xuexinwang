@@ -60,6 +60,52 @@ check_dependencies() {
         print_message "请先安装这些依赖。" "$YELLOW"
         exit 1
     fi
+
+    # Install Chinese fonts for QR code generation
+    print_message "检查中文字体..." "$BLUE"
+
+    # Check if Chinese fonts are installed
+    local has_chinese_font=false
+    local font_paths=(
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc"
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+    )
+
+    for font_path in "${font_paths[@]}"; do
+        if [ -f "$font_path" ]; then
+            has_chinese_font=true
+            break
+        fi
+    done
+
+    if ! $has_chinese_font; then
+        print_message "未检测到中文字体，正在安装..." "$YELLOW"
+
+        # Detect package manager and install fonts
+        if command -v apt-get &> /dev/null; then
+            # Debian/Ubuntu
+            apt-get update -qq
+            apt-get install -y fonts-wqy-microhei fonts-noto-cjk 2>/dev/null || true
+        elif command -v yum &> /dev/null; then
+            # CentOS/RHEL
+            yum install -y wqy-microhei-fonts google-noto-cjk-fonts 2>/dev/null || true
+        elif command -v dnf &> /dev/null; then
+            # Fedora
+            dnf install -y wqy-microhei-fonts google-noto-cjk-fonts 2>/dev/null || true
+        elif command -v zypper &> /dev/null; then
+            # openSUSE
+            zypper install -y wqy-microhei-fonts google-noto-cjk-fonts 2>/dev/null || true
+        elif command -v pacman &> /dev/null; then
+            # Arch Linux
+            pacman -Sy --noconfirm wqy-microhei noto-fonts-cjk 2>/dev/null || true
+        fi
+
+        print_message "中文字体安装完成" "$GREEN"
+    else
+        print_message "中文字体已安装" "$GREEN"
+    fi
 }
 
 # Interactive configuration

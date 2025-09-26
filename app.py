@@ -285,9 +285,14 @@ def submit():
                     # Default to .jpg if cannot determine
                     file_ext = '.jpg'
 
+            # Ensure uploads directory exists
+            upload_dir = os.path.join(app.root_path, app.config['UPLOAD_FOLDER'])
+            if not os.path.exists(upload_dir):
+                os.makedirs(upload_dir)
+
             random_hex = secrets.token_hex(4)  # 8 hex characters
             filename = f"{query_id}-{random_hex}{file_ext}"
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            filepath = os.path.join(upload_dir, filename)
             file.save(filepath)
             admission_photo = f'/uploads/{filename}'
 
@@ -422,12 +427,51 @@ def generate_code(query_id):
         draw = ImageDraw.Draw(img)
 
         # Try to use a Chinese font, fall back to default if not available
-        try:
-            font = ImageFont.truetype("C:/Windows/Fonts/simsun.ttc", 20)
-            font_small = ImageFont.truetype("C:/Windows/Fonts/simsun.ttc", 16)
-        except:
-            font = ImageFont.load_default()
-            font_small = ImageFont.load_default()
+        font_paths = [
+            # Windows
+            "C:/Windows/Fonts/simsun.ttc",
+            "C:/Windows/Fonts/msyh.ttc",
+            # Linux - common Chinese fonts
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+            # macOS
+            "/System/Library/Fonts/PingFang.ttc",
+            "/Library/Fonts/Arial Unicode.ttf",
+        ]
+
+        font = None
+        font_small = None
+
+        for font_path in font_paths:
+            if os.path.exists(font_path):
+                try:
+                    font = ImageFont.truetype(font_path, 20)
+                    font_small = ImageFont.truetype(font_path, 16)
+                    break
+                except:
+                    continue
+
+        # If no Chinese font found, try to download and use a free Chinese font
+        if not font:
+            try:
+                # Use built-in default font with larger size
+                from PIL import ImageFont
+                font = ImageFont.load_default()
+                font_small = ImageFont.load_default()
+
+                # For Linux systems without Chinese fonts, print a warning
+                print("警告: 未找到中文字体，二维码可能无法正确显示中文。")
+                print("建议安装中文字体:")
+                print("  Ubuntu/Debian: sudo apt-get install fonts-wqy-microhei fonts-noto-cjk")
+                print("  CentOS/RHEL: sudo yum install wqy-microhei-fonts google-noto-cjk-fonts")
+            except:
+                font = ImageFont.load_default()
+                font_small = ImageFont.load_default()
 
         # Add student information to the image with privacy protection
         text_color = (51, 51, 51)
@@ -524,8 +568,17 @@ def serve_uploads(filename):
 
     # Check if file exists
     if not os.path.exists(file_path):
-        # Return a placeholder image or 404
-        return "File not found", 404
+        # Try without extension if file not found (for legacy files without extension)
+        name_without_ext = os.path.splitext(filename)[0]
+        for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
+            test_path = os.path.join(uploads_dir, name_without_ext + ext)
+            if os.path.exists(test_path):
+                file_path = test_path
+                filename = name_without_ext + ext
+                break
+        else:
+            # Still not found, return 404
+            return "File not found", 404
 
     # Determine MIME type from extension
     ext = os.path.splitext(filename)[1].lower()
@@ -538,9 +591,9 @@ def serve_uploads(filename):
         '.webp': 'image/webp'
     }
 
-    mimetype = mime_types.get(ext, 'application/octet-stream')
+    mimetype = mime_types.get(ext, 'image/jpeg')  # Default to jpeg if unknown
 
-    return send_from_directory('uploads', filename, mimetype=mimetype)
+    return send_from_directory(uploads_dir, os.path.basename(filename), mimetype=mimetype)
 
 # Route to serve placeholder image
 @app.route('/temp/img_1.png')
