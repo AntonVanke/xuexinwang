@@ -763,6 +763,127 @@ def admin_delete_student(query_id):
     """Delete student (soft delete)"""
     return delete_student(query_id)
 
+@app.route('/api/admin/deleted-students')
+@admin_required
+def admin_get_deleted_students():
+    """Get paginated deleted students list"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+
+    conn = sqlite3.connect(app.config['DATABASE'])
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    # Get total count
+    c.execute("SELECT COUNT(*) FROM deleted_students")
+    total = c.fetchone()[0]
+
+    # Get paginated deleted students
+    offset = (page - 1) * per_page
+    c.execute("SELECT * FROM deleted_students ORDER BY deleted_at DESC LIMIT ? OFFSET ?", (per_page, offset))
+
+    students = [dict(row) for row in c.fetchall()]
+    conn.close()
+
+    return jsonify({
+        'students': students,
+        'total': total,
+        'page': page,
+        'pages': (total + per_page - 1) // per_page
+    })
+
+@app.route('/api/admin/deleted-student/<query_id>/restore', methods=['POST'])
+@admin_required
+def admin_restore_student(query_id):
+    """Restore a deleted student"""
+    conn = sqlite3.connect(app.config['DATABASE'])
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    try:
+        # Get deleted student data
+        c.execute("SELECT * FROM deleted_students WHERE query_id = ?", (query_id,))
+        student = c.fetchone()
+
+        if not student:
+            conn.close()
+            return jsonify({'success': False, 'message': '已删除的学生记录不存在'}), 404
+
+        student_dict = dict(student)
+
+        # Check if query_id already exists in students table
+        c.execute("SELECT query_id FROM students WHERE query_id = ?", (query_id,))
+        if c.fetchone():
+            conn.close()
+            return jsonify({'success': False, 'message': '该学生记录已存在，无法恢复'}), 400
+
+        # Restore to students table
+        c.execute("""INSERT INTO students
+                     (query_id, name, gender, ethnicity, id_number, student_id,
+                      school_name, college, major, degree_level, degree_type,
+                      learning_format, study_duration, enrollment_date,
+                      expected_graduation_date, admission_photo, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                  (student_dict['query_id'], student_dict['name'],
+                   student_dict['gender'], student_dict['ethnicity'],
+                   student_dict['id_number'], student_dict['student_id'],
+                   student_dict['school_name'], student_dict['college'],
+                   student_dict['major'], student_dict['degree_level'],
+                   student_dict['degree_type'], student_dict['learning_format'],
+                   student_dict['study_duration'], student_dict['enrollment_date'],
+                   student_dict.get('expected_graduation_date'),
+                   student_dict.get('admission_photo'),
+                   student_dict.get('created_at')))
+
+        # Remove from deleted_students table
+        c.execute("DELETE FROM deleted_students WHERE query_id = ?", (query_id,))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': '学生记录已恢复'})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'message': f'恢复失败: {str(e)}'}), 500
+
+@app.route('/api/admin/deleted-student/<query_id>', methods=['DELETE'])
+@admin_required
+def admin_permanent_delete_student(query_id):
+    """Permanently delete a student from deleted_students table"""
+    conn = sqlite3.connect(app.config['DATABASE'])
+    c = conn.cursor()
+
+    try:
+        # Check if deleted student exists
+        c.execute("SELECT admission_photo FROM deleted_students WHERE query_id = ?", (query_id,))
+        result = c.fetchone()
+
+        if not result:
+            conn.close()
+            return jsonify({'success': False, 'message': '记录不存在'}), 404
+
+        # Delete associated photo if exists
+        if result[0]:
+            photo_path = result[0].replace('/uploads/', 'uploads/')
+            if os.path.exists(photo_path):
+                try:
+                    os.remove(photo_path)
+                except:
+                    pass
+
+        # Permanently delete the record
+        c.execute("DELETE FROM deleted_students WHERE query_id = ?", (query_id,))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': '记录已永久删除'})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500
+
 @app.route('/api/admin/export')
 @admin_required
 def admin_export():
@@ -802,6 +923,24 @@ def admin_export():
 
 if __name__ == '__main__':
     init_db()
-    # host='0.0.0.0' 允许外网访问
-    # 生产环境建议使用 debug=False
-    app.run(host='0.0.0.0', debug=True, port=5000)
+
+    # 检查是否有Gunicorn可用（生产环境）
+    import subprocess
+    import sys
+
+    try:
+        # 尝试使用Gunicorn
+        result = subprocess.run(['which', 'gunicorn'], capture_output=True, text=True)
+        if result.returncode == 0:
+            print("检测到Gunicorn，使用生产WSGI服务器")
+            print("请使用以下命令启动：")
+            print("  gunicorn -c gunicorn_config.py app:app")
+            print("或者：")
+            print("  gunicorn --bind 0.0.0.0:5000 --workers 4 app:app")
+            sys.exit(0)
+    except:
+        pass
+
+    # 开发环境回退到Flask内置服务器
+    print("警告：使用Flask开发服务器，生产环境请使用Gunicorn")
+    app.run(host='0.0.0.0', debug=False, port=5000)

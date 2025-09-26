@@ -474,6 +474,134 @@ display_info() {
     print_message "首次访问 /admin/login 设置管理员密码" "$YELLOW"
 }
 
+# Function to update system
+update_system() {
+    print_message "\n=== 更新学信网档案管理系统 ===" "$BLUE"
+
+    # Check if system is installed
+    if [ ! -d "$INSTALL_DIR" ]; then
+        print_message "系统未安装在 $INSTALL_DIR" "$RED"
+        print_message "请先运行安装脚本" "$YELLOW"
+        exit 1
+    fi
+
+    # Stop service
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+        print_message "停止服务..." "$BLUE"
+        systemctl stop "$SERVICE_NAME"
+    fi
+
+    # Backup current data
+    print_message "备份当前数据..." "$BLUE"
+    BACKUP_DIR="$INSTALL_DIR/backup_$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$BACKUP_DIR"
+
+    # Backup database
+    if [ -f "$INSTALL_DIR/students.db" ]; then
+        cp "$INSTALL_DIR/students.db" "$BACKUP_DIR/"
+        print_message "数据库已备份" "$GREEN"
+    fi
+
+    # Backup uploads
+    if [ -d "$INSTALL_DIR/uploads" ]; then
+        cp -r "$INSTALL_DIR/uploads" "$BACKUP_DIR/"
+        print_message "上传文件已备份" "$GREEN"
+    fi
+
+    # Backup config
+    if [ -f "$INSTALL_DIR/config.json" ]; then
+        cp "$INSTALL_DIR/config.json" "$BACKUP_DIR/"
+        print_message "配置文件已备份" "$GREEN"
+    fi
+
+    # Download latest version
+    print_message "\n正在获取最新版本..." "$BLUE"
+    get_latest_release
+
+    # Download and extract new version
+    TEMP_DIR=$(mktemp -d)
+    cd $TEMP_DIR
+
+    print_message "下载最新版本..." "$BLUE"
+    if command -v curl &> /dev/null; then
+        curl -L --progress-bar --connect-timeout 30 --retry 3 \
+             -o xuexinwang.tar.gz "$DOWNLOAD_URL"
+    else
+        wget --progress=bar:force --timeout=30 --tries=3 \
+             "$DOWNLOAD_URL" -O xuexinwang.tar.gz
+    fi
+
+    # Extract
+    print_message "解压文件..." "$BLUE"
+    tar -xzf xuexinwang.tar.gz
+
+    # Update files
+    print_message "更新文件..." "$BLUE"
+    # Keep user data, update program files
+    if [ -d "xuexinwang" ]; then
+        # Update executable
+        if [ -f "xuexinwang/xuexinwang" ]; then
+            cp "xuexinwang/xuexinwang" "$INSTALL_DIR/"
+            chmod +x "$INSTALL_DIR/xuexinwang"
+        fi
+
+        # Update Python files if they exist
+        for file in app.py app_wrapper.py gunicorn_config.py requirements.txt fix_images.py; do
+            if [ -f "xuexinwang/$file" ]; then
+                cp "xuexinwang/$file" "$INSTALL_DIR/"
+            fi
+        done
+
+        # Update templates and static files
+        if [ -d "xuexinwang/templates" ]; then
+            cp -r "xuexinwang/templates" "$INSTALL_DIR/"
+        fi
+        if [ -d "xuexinwang/xxda" ]; then
+            cp -r "xuexinwang/xxda" "$INSTALL_DIR/"
+        fi
+
+        # Update start script
+        if [ -f "xuexinwang/start.sh" ]; then
+            cp "xuexinwang/start.sh" "$INSTALL_DIR/"
+            chmod +x "$INSTALL_DIR/start.sh"
+        else
+            create_wrapper_script
+        fi
+    fi
+
+    # Restore user data (already in place, just verify)
+    print_message "验证用户数据..." "$BLUE"
+    if [ ! -f "$INSTALL_DIR/students.db" ] && [ -f "$BACKUP_DIR/students.db" ]; then
+        cp "$BACKUP_DIR/students.db" "$INSTALL_DIR/"
+    fi
+    if [ ! -d "$INSTALL_DIR/uploads" ] && [ -d "$BACKUP_DIR/uploads" ]; then
+        cp -r "$BACKUP_DIR/uploads" "$INSTALL_DIR/"
+    fi
+
+    # Clean up
+    cd /
+    rm -rf $TEMP_DIR
+
+    # Fix permissions
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+
+    # Restart service
+    print_message "\n重启服务..." "$BLUE"
+    systemctl daemon-reload
+    systemctl start "$SERVICE_NAME"
+
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+        print_message "更新成功！" "$GREEN"
+        print_message "当前版本: $LATEST_RELEASE" "$GREEN"
+        print_message "备份位置: $BACKUP_DIR" "$YELLOW"
+    else
+        print_message "服务启动失败，请检查日志" "$RED"
+        print_message "使用命令查看日志: journalctl -u $SERVICE_NAME -n 50" "$YELLOW"
+        print_message "备份位置: $BACKUP_DIR" "$YELLOW"
+        exit 1
+    fi
+}
+
 # Function to uninstall
 uninstall() {
     print_message "\n=== 卸载学信网档案管理系统 ===" "$RED"
@@ -517,6 +645,13 @@ main() {
     if [ "$1" = "--uninstall" ]; then
         check_root
         uninstall
+        exit 0
+    fi
+
+    # Check if update flag is passed
+    if [ "$1" = "--update" ]; then
+        check_root
+        update_system
         exit 0
     fi
 
