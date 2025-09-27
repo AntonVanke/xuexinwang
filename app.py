@@ -431,14 +431,40 @@ def generate_code(query_id):
             # Windows
             "C:/Windows/Fonts/simsun.ttc",
             "C:/Windows/Fonts/msyh.ttc",
-            # Linux - common Chinese fonts
+            "C:/Windows/Fonts/simhei.ttf",
+            "C:/Windows/Fonts/simkai.ttf",
+            "C:/Windows/Fonts/STKAITI.TTF",
+            "C:/Windows/Fonts/STXIHEI.TTF",
+            # Linux - common Chinese fonts (expanded list)
             "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
             "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
             "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
             "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
             "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+            "/usr/share/fonts/truetype/arphic/uming.ttc",
+            "/usr/share/fonts/truetype/arphic/ukai.ttc",
+            "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+            "/usr/share/fonts/wenquanyi/wqy-microhei/wqy-microhei.ttc",
+            "/usr/share/fonts/wenquanyi/wqy-zenhei/wqy-zenhei.ttc",
+            "/usr/share/fonts/truetype/google-noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/noto-cjk/NotoSansCJK-Regular.ttc",
+            # Ubuntu specific paths
+            "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+            "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+            # CentOS/RHEL specific paths
+            "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/wqy-microhei/wqy-microhei.ttc",
+            "/usr/share/fonts/wqy-zenhei/wqy-zenhei.ttc",
+            # Debian/Ubuntu additional paths
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/opentype/ipafont-gothic/ipagp.ttf",
+            "/usr/share/fonts/truetype/vlgothic/VL-Gothic-Regular.ttf",
+            # Fedora paths
+            "/usr/share/fonts/google-noto-sans-cjk-ttc/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/wqy-microhei-fonts/wqy-microhei.ttc",
             # macOS
             "/System/Library/Fonts/PingFang.ttc",
             "/Library/Fonts/Arial Unicode.ttf",
@@ -452,26 +478,73 @@ def generate_code(query_id):
                 try:
                     font = ImageFont.truetype(font_path, 20)
                     font_small = ImageFont.truetype(font_path, 16)
+                    print(f"成功加载字体: {font_path}")
                     break
-                except:
+                except Exception as e:
+                    print(f"尝试加载字体 {font_path} 失败: {e}")
                     continue
 
-        # If no Chinese font found, try to download and use a free Chinese font
+        # If no Chinese font found, try alternative approaches
         if not font:
-            try:
-                # Use built-in default font with larger size
-                from PIL import ImageFont
+            # Try to download a free Chinese font if not available
+            font_dir = os.path.join(os.path.dirname(__file__), 'fonts')
+            local_font = os.path.join(font_dir, 'NotoSansSC-Regular.otf')
+
+            if not os.path.exists(local_font):
+                print("尝试下载开源中文字体...")
+                try:
+                    import urllib.request
+                    # Create fonts directory if it doesn't exist
+                    os.makedirs(font_dir, exist_ok=True)
+
+                    # Download Noto Sans SC (Google's open source Chinese font)
+                    font_url = "https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/SimplifiedChinese/NotoSansSC-Regular.otf"
+                    print(f"正在从 {font_url} 下载字体...")
+                    urllib.request.urlretrieve(font_url, local_font)
+                    print(f"字体下载成功: {local_font}")
+                except Exception as e:
+                    print(f"字体下载失败: {e}")
+                    local_font = None
+
+            # Try to use the downloaded font
+            if local_font and os.path.exists(local_font):
+                try:
+                    font = ImageFont.truetype(local_font, 20)
+                    font_small = ImageFont.truetype(local_font, 16)
+                    print(f"使用下载的字体: {local_font}")
+                except Exception as e:
+                    print(f"加载下载的字体失败: {e}")
+
+            # If still no font, try DejaVu as fallback (has better Unicode support)
+            if not font:
+                dejavu_paths = [
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                    "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+                    "/usr/share/fonts/truetype/dejavu-sans/DejaVuSans.ttf",
+                ]
+
+                for dejavu_path in dejavu_paths:
+                    if os.path.exists(dejavu_path):
+                        try:
+                            font = ImageFont.truetype(dejavu_path, 20)
+                            font_small = ImageFont.truetype(dejavu_path, 16)
+                            print(f"使用DejaVu字体作为后备: {dejavu_path}")
+                            print("注意: DejaVu字体可能无法完美显示中文，建议安装中文字体")
+                            break
+                        except:
+                            pass
+
+            # Last resort: use default font
+            if not font:
                 font = ImageFont.load_default()
                 font_small = ImageFont.load_default()
-
-                # For Linux systems without Chinese fonts, print a warning
-                print("警告: 未找到中文字体，二维码可能无法正确显示中文。")
-                print("建议安装中文字体:")
+                print("警告: 未找到合适的字体，使用默认字体")
+                print("中文可能显示为方块或乱码")
+                print("强烈建议安装中文字体:")
                 print("  Ubuntu/Debian: sudo apt-get install fonts-wqy-microhei fonts-noto-cjk")
                 print("  CentOS/RHEL: sudo yum install wqy-microhei-fonts google-noto-cjk-fonts")
-            except:
-                font = ImageFont.load_default()
-                font_small = ImageFont.load_default()
+                print("  Fedora: sudo dnf install google-noto-sans-cjk-fonts wqy-microhei-fonts")
+                print("  Arch: sudo pacman -S noto-fonts-cjk wqy-microhei")
 
         # Add student information to the image with privacy protection
         text_color = (51, 51, 51)
